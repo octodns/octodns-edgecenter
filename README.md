@@ -1,13 +1,13 @@
-## EdgeCenter DNS & G-Core Labs DNS v2 API provider for octoDNS
+## EdgeCenter DNS v2 API provider for octoDNS
 
-An [octoDNS](https://github.com/octodns/octodns/) provider that targets [EdgeCenter DNS](https://edgecenter.ru/dns/) and [G-Core Labs DNS](https://gcorelabs.com/dns/).
+An [octoDNS](https://github.com/octodns/octodns/) provider that targets [EdgeCenter DNS](https://edgecenter.ru/dns/).
 
 ### Installation
 
 #### Command line
 
 ```
-pip install octodns-gcore
+pip install octodns-edgecenter
 ```
 
 #### requirements.txt/setup.py
@@ -19,7 +19,7 @@ Pinning specific versions or SHAs is recommended to avoid unplanned upgrades.
 ```
 # Start with the latest versions and don't just copy what's here
 octodns==0.9.14
-octodns-gcore==0.0.1
+octodns-edgecenter==0.0.1
 ```
 
 ##### SHAs
@@ -27,7 +27,7 @@ octodns-gcore==0.0.1
 ```
 # Start with the latest/specific versions and don't just copy what's here
 -e git+https://git@github.com/octodns/octodns.git@9da19749e28f68407a1c246dfdf65663cdc1c422#egg=octodns
--e git+https://git@github.com/octodns/octodns-gcore.git@ec9661f8b335241ae4746eea467a8509205e6a30#egg=octodns_gcore
+-e git+https://git@github.com/octodns/octodns-edgecenter.git@ec9661f8b335241ae4746eea467a8509205e6a30#egg=octodns_edgecenter
 ```
 
 ### Configuration
@@ -35,35 +35,18 @@ octodns-gcore==0.0.1
 
 #### EdgeCenterProvider
 
-```
+```yaml
 providers:
   ec:
-    class: octodns_gcore.EdgeCenterProvider
+    class: octodns_edgecenter.EdgeCenterProvider
     # Your API key
     token: env/EC_TOKEN
     token_type: APIKey
     # or login + password
     #login: env/EC_LOGIN
     #password: env/EC_PASSWORD
-    #auth_url: https://api.edgecenter.ru/id
+    #auth_url: https://api.edgecenter.ru/iam
     #url: https://api.edgecenter.ru/dns/v2
-    #records_per_response: 1
-```
-
-#### GCoreProvider
-
-```yaml
-providers:
-  gcore:
-    class: octodns_gcore.GCoreProvider
-    # Your API key
-    token: env/GCORE_TOKEN
-    token_type: APIKey
-    # or login + password
-    #login: env/GCORE_LOGIN
-    #password: env/GCORE_PASSWORD
-    #auth_url: https://api.gcorelabs.com/id
-    #url: https://api.gcorelabs.com/dns/v2
     #records_per_response: 1
 ```
 

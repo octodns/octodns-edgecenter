@@ -5,9 +5,9 @@
     "retry": 5400,
     "refresh": 0,
     "expiry": 1209600,
-    "contact": "support@gcorelabs.com",
+    "contact": "support@edgecenter.ru",
     "serial": 1614752868,
-    "primary_server": "ns1.gcorelabs.net",
+    "primary_server": "ns1.edgedns.ru",
     "records": [
       {
         "id": 12419,
@@ -15,13 +15,13 @@
         "type": "ns",
         "ttl": 300,
         "short_answers": [
-          "[ns2.gcdn.services]",
-          "[ns1.gcorelabs.net]"
+          "[ns2.edgedns.ru]",
+          "[ns1.edgedns.ru]"
         ]
       }
     ],
     "dns_servers": [
-      "ns1.gcorelabs.net",
-      "ns2.gcdn.services"
+      "ns1.edgedns.ru",
+      "ns2.edgedns.ru"
     ]
 }

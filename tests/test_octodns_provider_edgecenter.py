@@ -11,17 +11,16 @@ from octodns.record import Record, Update, Delete, Create
 from octodns.provider.yaml import YamlProvider
 from octodns.zone import Zone
 
-from octodns_gcore import (
+from octodns_edgecenter import (
     _BaseProvider,
     EdgeCenterProvider,
-    GCoreProvider,
-    GCoreClientBadRequest,
-    GCoreClientNotFound,
-    GCoreClientException,
+    EdgeCenterClientBadRequest,
+    EdgeCenterClientNotFound,
+    EdgeCenterClientException,
 )
 
 
-class TestGCoreProvider(TestCase):
+class TestEdgeCenterProvider(TestCase):
     expected = Zone("unit.tests.", [])
     source = YamlProvider("test", join(dirname(__file__), "config"))
     source.populate(expected)
@@ -34,13 +33,13 @@ class TestGCoreProvider(TestCase):
 
     def test_populate(self):
 
-        provider = GCoreProvider("test_id", token="token")
+        provider = EdgeCenterProvider("test_id", token="token")
 
         # TC: 400 - Bad Request.
         with requests_mock() as mock:
             mock.get(ANY, status_code=400, text='{"error":"bad body"}')
 
-            with self.assertRaises(GCoreClientBadRequest) as ctx:
+            with self.assertRaises(EdgeCenterClientBadRequest) as ctx:
                 zone = Zone("unit.tests.", [])
                 provider.populate(zone)
             self.assertIn('"error":"bad body"', str(ctx.exception))
@@ -49,7 +48,7 @@ class TestGCoreProvider(TestCase):
         with requests_mock() as mock:
             mock.get(ANY, status_code=404, text='{"error":"zone is not found"}')
 
-            with self.assertRaises(GCoreClientNotFound) as ctx:
+            with self.assertRaises(EdgeCenterClientNotFound) as ctx:
                 zone = Zone("unit.tests.", [])
                 provider._client.zone(zone.name)
             self.assertIn('"error":"zone is not found"', str(ctx.exception))
@@ -58,7 +57,7 @@ class TestGCoreProvider(TestCase):
         with requests_mock() as mock:
             mock.get(ANY, status_code=500, text="Things caught fire")
 
-            with self.assertRaises(GCoreClientException) as ctx:
+            with self.assertRaises(EdgeCenterClientException) as ctx:
                 zone = Zone("unit.tests.", [])
                 provider.populate(zone)
             self.assertEqual("Things caught fire", str(ctx.exception))
@@ -66,7 +65,7 @@ class TestGCoreProvider(TestCase):
         # TC: No credentials or token error
         with requests_mock() as mock:
             with self.assertRaises(ValueError) as ctx:
-                GCoreProvider("test_id")
+                EdgeCenterProvider("test_id")
             self.assertEqual(
                 "either token or login & password must be set",
                 str(ctx.exception),
@@ -86,7 +85,7 @@ class TestGCoreProvider(TestCase):
                 json={"access": "access"},
             )
 
-            providerPassword = GCoreProvider(
+            providerPassword = EdgeCenterProvider(
                 "test_id",
                 url="http://dns",
                 auth_url="http://api",
@@ -107,8 +106,8 @@ class TestGCoreProvider(TestCase):
 
         # TC: No diffs == no changes
         with requests_mock() as mock:
-            base = "https://api.gcorelabs.com/dns/v2/zones/unit.tests/rrsets"
-            with open("tests/fixtures/gcore-no-changes.json") as fh:
+            base = "https://api.edgecenter.ru/dns/v2/zones/unit.tests/rrsets"
+            with open("tests/fixtures/edgecenter-no-changes.json") as fh:
                 mock.get(base, text=fh.read())
 
             zone = Zone("unit.tests.", [])
@@ -137,8 +136,8 @@ class TestGCoreProvider(TestCase):
 
         # TC: 4 create (dynamic) + 1 removed + 7 modified
         with requests_mock() as mock:
-            base = "https://api.gcorelabs.com/dns/v2/zones/unit.tests/rrsets"
-            with open("tests/fixtures/gcore-records.json") as fh:
+            base = "https://api.edgecenter.ru/dns/v2/zones/unit.tests/rrsets"
+            with open("tests/fixtures/edgecenter-records.json") as fh:
                 mock.get(base, text=fh.read())
 
             zone = Zone("unit.tests.", [])
@@ -158,7 +157,7 @@ class TestGCoreProvider(TestCase):
 
         # TC: no pools can be built
         with requests_mock() as mock:
-            base = "https://api.gcorelabs.com/dns/v2/zones/unit.tests/rrsets"
+            base = "https://api.edgecenter.ru/dns/v2/zones/unit.tests/rrsets"
             mock.get(
                 base,
                 json={
@@ -186,7 +185,7 @@ class TestGCoreProvider(TestCase):
             )
 
     def test_apply(self):
-        provider = GCoreProvider(
+        provider = EdgeCenterProvider(
             "test_id", url="http://api", token="token", strict_supports=False
         )
 
@@ -209,7 +208,7 @@ class TestGCoreProvider(TestCase):
             )
 
             with self.assertRaises(
-                (GCoreClientNotFound, GCoreClientBadRequest)
+                (EdgeCenterClientNotFound, EdgeCenterClientBadRequest)
             ) as ctx:
                 plan = provider.plan(self.expected)
                 provider.apply(plan)
@@ -222,13 +221,13 @@ class TestGCoreProvider(TestCase):
         resp.json = Mock()
         provider._client._request = Mock(return_value=resp)
 
-        with open("tests/fixtures/gcore-zone.json") as fh:
+        with open("tests/fixtures/edgecenter-zone.json") as fh:
             zone = fh.read()
 
         # non-existent domain
         resp.json.side_effect = [
-            GCoreClientNotFound(resp),  # no zone in populate
-            GCoreClientNotFound(resp),  # no domain during apply
+            EdgeCenterClientNotFound(resp),  # no zone in populate
+            EdgeCenterClientNotFound(resp),  # no domain during apply
             zone,
         ]
         plan = provider.plan(self.expected)
@@ -629,8 +628,5 @@ class TestGCoreProvider(TestCase):
         )
 
     def test_provider_hierarchy(self):
-        provider = GCoreProvider("test_id", token="token")
-        self.assertIsInstance(provider, _BaseProvider)
-
         provider = EdgeCenterProvider("test_id", token="token")
         self.assertIsInstance(provider, _BaseProvider)

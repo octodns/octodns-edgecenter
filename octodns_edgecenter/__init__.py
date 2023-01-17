@@ -12,25 +12,25 @@ from octodns.record import GeoCodes, Record
 from octodns.provider import ProviderException
 from octodns.provider.base import BaseProvider
 
-__VERSION__ = '0.0.3'
+__VERSION__ = '0.0.1'
 
 
-class GCoreClientException(ProviderException):
+class EdgeCenterClientException(ProviderException):
     def __init__(self, r):
         super().__init__(r.text)
 
 
-class GCoreClientBadRequest(GCoreClientException):
+class EdgeCenterClientBadRequest(EdgeCenterClientException):
     def __init__(self, r):
         super().__init__(r)
 
 
-class GCoreClientNotFound(GCoreClientException):
+class EdgeCenterClientNotFound(EdgeCenterClientException):
     def __init__(self, r):
         super().__init__(r)
 
 
-class GCoreClient(object):
+class EdgeCenterClient(object):
 
     ROOT_ZONES = "zones"
 
@@ -76,13 +76,13 @@ class GCoreClient(object):
             self.log.error(
                 "bad request %r has been sent to %r: %s", data, url, r.text
             )
-            raise GCoreClientBadRequest(r)
+            raise EdgeCenterClientBadRequest(r)
         elif r.status_code == http.HTTPStatus.NOT_FOUND:
             self.log.error("resource %r not found: %s", url, r.text)
-            raise GCoreClientNotFound(r)
+            raise EdgeCenterClientNotFound(r)
         elif r.status_code == http.HTTPStatus.INTERNAL_SERVER_ERROR:
             self.log.error("server error no %r to %r: %s", data, url, r.text)
-            raise GCoreClientException(r)
+            raise EdgeCenterClientException(r)
         r.raise_for_status()
         return r
 
@@ -145,7 +145,7 @@ class _BaseProvider(BaseProvider):
         self.records_per_response = kwargs.pop("records_per_response", 1)
         self.log.debug("__init__: id=%s", id)
         super().__init__(id, *args, **kwargs)
-        self._client = GCoreClient(
+        self._client = EdgeCenterClient(
             self.log,
             api_url,
             auth_url,
@@ -339,7 +339,7 @@ class _BaseProvider(BaseProvider):
     def zone_records(self, zone):
         try:
             return self._client.zone_records(zone.name[:-1]), True
-        except GCoreClientNotFound:
+        except EdgeCenterClientNotFound:
             return [], False
 
     def populate(self, zone, target=False, lenient=False):
@@ -571,7 +571,7 @@ class _BaseProvider(BaseProvider):
 
         try:
             self._client.zone(zone)
-        except GCoreClientNotFound:
+        except EdgeCenterClientNotFound:
             self.log.info("_apply: no existing zone, trying to create it")
             self._client.zone_create(zone)
             self.log.info("_apply: zone has been successfully created")
@@ -585,13 +585,5 @@ class EdgeCenterProvider(_BaseProvider):
     def __init__(self, id, *args, **kwargs):
         self.log = logging.getLogger(f"EdgeCenterProvider[{id}]")
         api_url = kwargs.pop("url", "https://api.edgecenter.ru/dns/v2")
-        auth_url = kwargs.pop("auth_url", "https://api.edgecenter.ru/id")
-        super().__init__(id, api_url, auth_url, *args, **kwargs)
-
-
-class GCoreProvider(_BaseProvider):
-    def __init__(self, id, *args, **kwargs):
-        self.log = logging.getLogger(f"GCoreProvider[{id}]")
-        api_url = kwargs.pop("url", "https://api.gcorelabs.com/dns/v2")
-        auth_url = kwargs.pop("auth_url", "https://api.gcorelabs.com/id")
+        auth_url = kwargs.pop("auth_url", "https://api.edgecenter.ru/iam")
         super().__init__(id, api_url, auth_url, *args, **kwargs)
