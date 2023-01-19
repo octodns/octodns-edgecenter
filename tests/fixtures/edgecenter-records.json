@@ -19,12 +19,12 @@
             "resource_records": [
                 {
                     "content": [
-                        "ns2.gcdn.services"
+                        "ns2.edgedns.ru"
                     ]
                 },
                 {
                     "content": [
-                        "ns1.gcorelabs.net"
+                        "ns1.edgedns.ru"
                     ]
                 }
             ]

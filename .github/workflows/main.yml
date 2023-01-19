@@ -1,4 +1,4 @@
-name: octoDNS GCoreProvider
+name: octoDNS EdgeCenterProvider
 on: [pull_request]
 
 jobs:

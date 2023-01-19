@@ -30,8 +30,8 @@
   - ttl: 300
     type: NS
     values:
-    - ns1.gcorelabs.net.
-    - ns2.gcdn.services.
+    - ns1.edgedns.ru.
+    - ns2.edgedns.ru.
   - type: CAA
     values:
     - flags: 0

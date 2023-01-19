@@ -12,7 +12,7 @@ def descriptions():
 
 def version():
     version = 'unknown'
-    with open('octodns_gcore/__init__.py') as fh:
+    with open('octodns_edgecenter/__init__.py') as fh:
         for line in fh:
             if line.startswith('__VERSION__'):
                 version = line.split("'")[1]
@@ -53,10 +53,10 @@ setup(
     license='MIT',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    name='octodns-gcore',
+    name='octodns-edgecenter',
     packages=find_packages(),
     python_requires='>=3.6',
     tests_require=tests_require,
-    url='https://github.com/octodns/octodns-gcore',
+    url='https://github.com/octodns/octodns-edgecenter',
     version=version(),
 )

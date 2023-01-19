@@ -11,10 +11,10 @@ if ! git diff-index --quiet HEAD --; then
     exit 1
 fi
 
-VERSION="$(grep __VERSION__ "$ROOT/octodns_gcore/__init__.py" | sed -e "s/.* = '//" -e "s/'$//")"
+VERSION="$(grep __VERSION__ "$ROOT/octodns_edgecenter/__init__.py" | sed -e "s/.* = '//" -e "s/'$//")"
 SHA=$(git rev-parse HEAD)
 python setup.py sdist
-TARBALL="dist/octodns-gcore-$SHA.tar.gz"
-mv dist/octodns-gcore-$VERSION.tar.gz "$TARBALL"
+TARBALL="dist/octodns-edgecenter-$SHA.tar.gz"
+mv dist/octodns-edgecenter-$VERSION.tar.gz "$TARBALL"
 
 echo "Created $TARBALL"
