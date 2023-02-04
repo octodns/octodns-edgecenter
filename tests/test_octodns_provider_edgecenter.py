@@ -3,20 +3,22 @@
 #
 
 from os.path import dirname, join
-from requests_mock import ANY, mock as requests_mock
 from unittest import TestCase
 from unittest.mock import Mock, call
 
-from octodns.record import Record, Update, Delete, Create
+from requests_mock import ANY
+from requests_mock import mock as requests_mock
+
 from octodns.provider.yaml import YamlProvider
+from octodns.record import Create, Delete, Record, Update
 from octodns.zone import Zone
 
 from octodns_edgecenter import (
-    _BaseProvider,
-    EdgeCenterProvider,
     EdgeCenterClientBadRequest,
-    EdgeCenterClientNotFound,
     EdgeCenterClientException,
+    EdgeCenterClientNotFound,
+    EdgeCenterProvider,
+    _BaseProvider,
 )
 
 
@@ -32,7 +34,6 @@ class TestEdgeCenterProvider(TestCase):
     ]
 
     def test_populate(self):
-
         provider = EdgeCenterProvider("test_id", token="token")
 
         # TC: 400 - Bad Request.
