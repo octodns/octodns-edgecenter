@@ -631,3 +631,217 @@ class TestEdgeCenterProvider(TestCase):
     def test_provider_hierarchy(self):
         provider = EdgeCenterProvider("test_id", token="token")
         self.assertIsInstance(provider, _BaseProvider)
+
+class TestEdgeCenterProviderWeighted(TestCase):
+    # expected = Zone("unit.tests.", [])
+    expected = Zone("un.test.", [])
+    source = YamlProvider("test2", join(dirname(__file__), "config"))
+    source.populate(expected)
+
+    weighted_shuffle_filters = [
+                {"type": "weighted_shuffle"},
+                {"type": "first_n", "limit": 1},
+            ]
+
+    def test_populate(self):
+        provider = EdgeCenterProvider("test_id", token="token")
+
+        # TC: 400 - Bad Request.
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=400, text='{"error":"bad body"}')
+
+            with self.assertRaises(EdgeCenterClientBadRequest) as ctx:
+                zone = Zone("un.test.", [])
+                provider.populate(zone)
+            self.assertIn('"error":"bad body"', str(ctx.exception))
+
+        # TC: No diffs == no changes
+        with requests_mock() as mock:
+            base = "https://api.edgecenter.ru/dns/v2/zones/un.test/rrsets"
+            with open("tests/fixtures/edgecenter-no-changes-weight.json") as fh:
+                mock.get(base, text=fh.read())
+
+            zone = Zone("un.test.", [])
+            provider.populate(zone)
+            self.assertEqual(11, len(zone.records))
+            self.assertEqual(
+                {
+                    "",
+                    "00.img",
+                    "01.img",
+                    "02.img",
+                    "03.img",
+                    "04.img",
+                    "o00.img",
+                    "o01.img",
+                    "o02.img",
+                    "o03.img",
+                    "o04.img",
+                },
+                {r.name for r in zone.records},
+            )
+            changes = self.expected.changes(zone, provider)
+            self.assertEqual(0, len(changes))
+
+        # TC: 1 create (dynamic) + 1 removed + 1 modified
+        with requests_mock() as mock:
+            base = "https://api.edgecenter.ru/dns/v2/zones/un.test/rrsets"
+            with open("tests/fixtures/edgecenter-records-weighted.json") as fh:
+                mock.get(base, text=fh.read())
+
+            zone = Zone("un.test.", [])
+            provider.populate(zone)
+            self.assertEqual(11, len(zone.records))
+            changes = self.expected.changes(zone, provider)
+            self.assertEqual(3, len(changes))
+            self.assertEqual(
+                1, len([c for c in changes if isinstance(c, Create)])
+            )
+            self.assertEqual(
+                1, len([c for c in changes if isinstance(c, Delete)])
+            )
+            self.assertEqual(
+                1, len([c for c in changes if isinstance(c, Update)])
+            )
+
+        # TC: no pools can be built
+        with requests_mock() as mock:
+            base = "https://api.edgecenter.ru/dns/v2/zones/un.test/rrsets"
+            mock.get(
+                base,
+                json={
+                    "rrsets": [
+                        {
+                            "name": "un.test",
+                            "type": "A",
+                            "ttl": 60,
+                            "filters": self.weighted_shuffle_filters,
+                            "resource_records": [{"content": ["7.7.7.7"]}],
+                        }
+                    ]
+                },
+            )
+
+            zone = Zone("un.test.", [])
+            with self.assertRaises(RuntimeError) as ctx:
+                provider.populate(zone)
+
+            self.assertTrue(
+                str(ctx.exception).startswith(
+                    "filter is enabled, but no pools where built for"
+                ),
+                f"{ctx.exception} - is not start from desired text",
+            )
+
+    def test_apply(self):
+        provider = EdgeCenterProvider(
+            "test_id", url="http://api", token="token", strict_supports=False
+        )
+
+        resp = Mock()
+        resp.json = Mock()
+        provider._client._request = Mock(return_value=resp)
+
+         # TC: create dynamics
+        provider._client._request.reset_mock()
+        provider._client.zone_records = Mock(return_value=[])
+
+        # Domain exists, we don't care about return
+        resp.json.side_effect = ["{}"]
+
+        wanted = Zone("un.test.", [])
+        wanted.add_record(
+            Record.new(
+                wanted,
+                "weight-simple",
+                {
+                    "ttl": 300,
+                    "type": "A",
+                    "value": "3.3.3.3",
+                    "dynamic": {
+                        "pools": {
+                            "weight": {
+                                "values": [
+                                    {"value": "3.3.3.3", "weight": 2},
+                                    {"value": "2.3.3.3", "weight": 1},
+                                    {"value": "1.3.3.3", "weight": 5},
+                            ]
+                            },
+                        },
+                        "rules": [
+                            {"pool": "weight"},
+                        ],
+                    },
+                },
+            )
+        )
+        wanted.add_record(
+            Record.new(
+                wanted,
+                "weight-cname-smpl",
+                {
+                    "ttl": 300,
+                    "type": "CNAME",
+                    "value": "en.un.test.",
+                    "dynamic": {
+                        "pools": {
+                            "weight": {
+                                "values": [
+                                    {"value": "ru-1.un.test.", "weight": 2},
+                                    {"value": "ru-2.un.test.", "weight": 1},
+                                    {"value": "eu.un.test.", "weight": 5},
+                            ]
+                            },
+                        },
+                        "rules": [
+                            {"pool": "weight"},
+                        ],
+                    },
+                },
+            )
+        )
+
+        plan = provider.plan(wanted)
+        self.assertTrue(plan.exists)
+        self.assertEqual(2, len(plan.changes))
+        self.assertEqual(2, provider.apply(plan))
+
+        provider._client._request.assert_has_calls(
+            [
+                call(
+                    "POST",
+                    "http://api/zones/un.test/weight-cname-smpl.un.test./CNAME",
+                    data={
+                        "ttl": 300,
+                        "filters": self.weighted_shuffle_filters,
+                        "resource_records": [
+                            {
+                                "content": ["eu.un.test."],
+                                "meta": {"weight": 5},
+                            },
+                            {
+                                "content": ["ru-1.un.test."],
+                                "meta": {"weight": 2},
+                            },
+                            {
+                                "content": ["ru-2.un.test."],
+                                "meta": {"weight": 1},
+                            },
+                        ],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/un.test/weight-simple.un.test./A",
+                    data={
+                        "ttl": 300,
+                        "filters": self.weighted_shuffle_filters,
+                        "resource_records": [
+                            {"content": ["1.3.3.3"], "meta": {"weight": 5}},
+                            {"content": ["3.3.3.3"], "meta": {"weight": 2}},
+                            {"content": ["2.3.3.3"], "meta": {"weight": 1}},
+                        ],
+                    },
+                ),
+            ]
+        )

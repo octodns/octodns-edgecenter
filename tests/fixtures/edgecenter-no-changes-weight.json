@@ -1,0 +1,265 @@
+{
+    "rrsets": [
+        {
+            "name": "un.test",
+            "type": "A",
+            "ttl": 60,
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "5.5.5.5"
+                    ],
+                    "meta": {
+                        "weight": 25
+                    }
+                },
+                {
+                    "content": [
+                        "6.6.6.6"
+                    ],
+                    "meta": {
+                        "weight": 1
+                    }
+                },
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ],
+                    "meta": {
+                        "weight": 75
+                    }
+                }
+            ]
+        },
+        {
+            "name": "00.img.un.test",
+            "type": "CNAME",
+            "ttl": 300,
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "cl-dabdb3fc.edgecdn.ru"
+                    ],
+                    "meta": {
+                        "weight": 2
+                    }
+                },
+                {
+                    "content": [
+                        "cl-dabdb3fc.edgecdn.ru"
+                    ],
+                    "meta": {
+                        "weight": 1
+                    }
+                },
+                {
+                    "content": [
+                        "cl-dabdb3fc.edgecdn.ru"
+                    ],
+                    "meta": {
+                        "weight": 4
+                    }
+                }
+            ]
+        },
+        {
+            "name": "01.img.un.test",
+            "type": "CNAME",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "cl-dabdb3fc.edgecdn.ru."
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "02.img.un.test",
+            "type": "CNAME",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "cl-dabdb3fc.edgecdn.ru."
+                    ]
+                },
+                {
+                    "content": [
+                        "cl-dabdb3fc.edgecdn.ru."
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "03.img.un.test",
+            "type": "CNAME",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "cl-dabdb3fc.edgecdn.ru."
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "04.img.un.test",
+            "type": "CNAME",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "cl-dabdb3fc.edgecdn.ru."
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "o00.img.un.test",
+            "type": "A",
+            "ttl": 300,
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "146.158.48.128"
+                    ],
+                    "meta": {
+                        "weight": 25
+                    }
+                },
+                {
+                    "content": [
+                        "146.158.52.128"
+                    ],
+                    "meta": {
+                        "weight": 1
+                    }
+                },
+                {
+                    "content": [
+                        "146.158.54.128"
+                    ],
+                    "meta": {
+                        "weight": 75
+                    }
+                }
+            ]
+        },
+        {
+            "name": "o01.img.un.test",
+            "type": "A",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "146.158.48.128"
+                    ]
+                },
+                {
+                    "content": [
+                        "146.158.52.128"
+                    ]
+                },
+                {
+                    "content": [
+                        "146.158.54.128"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "o02.img.un.test",
+            "type": "A",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "146.158.48.128"
+                    ]
+                },
+                {
+                    "content": [
+                        "146.158.52.128"
+                    ]
+                },
+                {
+                    "content": [
+                        "146.158.54.128"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "o03.img.un.test",
+            "type": "A",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "146.158.48.128"
+                    ]
+                },
+                {
+                    "content": [
+                        "146.158.52.128"
+                    ]
+                },
+                {
+                    "content": [
+                        "146.158.54.128"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "o04.img.un.test",
+            "type": "A",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "146.158.48.128"
+                    ]
+                },
+                {
+                    "content": [
+                        "146.158.52.128"
+                    ]
+                },
+                {
+                    "content": [
+                        "146.158.54.128"
+                    ]
+                }
+            ]
+        }
+    ]
+}

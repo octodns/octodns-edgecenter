@@ -60,6 +60,87 @@ Supports A, AAAA, NS, MX, TXT, SRV, CNAME, and PTR
 
 Supports dynamic records.
 
+#### Filters
+
+Supports filter weight of records type A, AAAA, and CNAME (weighted_shuffle)
+
+You need to use the weight pool:
+
+```yaml
+---
+'':
+  # This is a dynamic record when used with providers that support it
+  dynamic:
+    # These are the pools of records that can be referenced and thus used by rules
+    pools:
+      weight:
+        # Implicit weight to the weight pool (below)
+        values:
+        - value: 5.5.5.5
+          weight: 25
+        - value: 6.6.6.6
+        - value: 7.7.7.7
+          weight: 75
+    # Rules that assign queries to pools
+    rules:
+    # No geos means match all queries
+    - pool: weight
+  ttl: 60
+  type: A
+  # These values become a non-healthchecked default pool
+  values:
+  - 5.5.5.5
+  - 6.6.6.6
+  - 7.7.7.7
+```
+```json
+{
+    "rrsets": [
+        {
+            "name": "your.zone.",
+            "type": "A",
+            "ttl": 60,
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ],
+                    "meta": {
+                        "weight": 75
+                    }
+                },
+                {
+                    "content": [
+                        "6.6.6.6"
+                    ],
+                    "meta": {
+                        "weight": 1
+                    }
+                },
+                {
+                    "content": [
+                        "5.5.5.5"
+                    ],
+                    "meta": {
+                        "weight": 25
+                    }
+                }
+            ]
+        }
+     ]
+}
+
+```
+
 ### Development
 
 See the [/script/](/script/) directory for some tools to help with the development process. They generally follow the [Script to rule them all](https://github.com/github/scripts-to-rule-them-all) pattern. Most useful is `./script/bootstrap` which will create a venv and install both the runtime and development related requirements. It will also hook up a pre-commit hook that covers most of what's run by CI.
