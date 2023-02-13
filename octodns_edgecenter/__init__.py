@@ -156,19 +156,19 @@ class _BaseProvider(BaseProvider):
         )
 
         self.geo_filters = [
-                {"type": "geodns"},
-                {
-                    "type": "default",
-                    "limit": self.records_per_response,
-                    "strict": False,
-                },
-                {"type": "first_n", "limit": self.records_per_response},
-            ]
+            {"type": "geodns"},
+            {
+                "type": "default",
+                "limit": self.records_per_response,
+                "strict": False,
+            },
+            {"type": "first_n", "limit": self.records_per_response},
+        ]
 
         self.weighted_shuffle_filters = [
-                {"type": "weighted_shuffle"},
-                {"type": "first_n", "limit": self.records_per_response},
-            ]
+            {"type": "weighted_shuffle"},
+            {"type": "first_n", "limit": self.records_per_response},
+        ]
 
     def _add_dot_if_need(self, value):
         return f"{value}." if not value.endswith(".") else value
@@ -189,8 +189,11 @@ class _BaseProvider(BaseProvider):
                 defaults.append(value["value"])
                 continue
             elif meta.get("weight", 0) > 0:
-            # elif len(weight) > 0:
-                value_weight = {"value": value_transform_fn(rr["content"][0]), "weight": meta.get("weight", 0)}
+                # elif len(weight) > 0:
+                value_weight = {
+                    "value": value_transform_fn(rr["content"][0]),
+                    "weight": meta.get("weight", 0),
+                }
                 pools["weight"]["values"].append(value_weight)
                 defaults.append(value["value"])
                 continue
@@ -412,7 +415,7 @@ class _BaseProvider(BaseProvider):
         want_filters = 3
         filters = record.get("filters", [])
         for fls in filters:
-            if fls.get("type","") == "weighted_shuffle":
+            if fls.get("type", "") == "weighted_shuffle":
                 want_filters = 2
                 break
         # resource_records = record.get("resource_records", [])
@@ -519,7 +522,11 @@ class _BaseProvider(BaseProvider):
         filters = self.geo_filters
         if weight:
             filters = self.weighted_shuffle_filters
-            records = sorted(records, key=lambda x: (x["meta"]["weight"], x['content']), reverse=True)
+            records = sorted(
+                records,
+                key=lambda x: (x["meta"]["weight"], x['content']),
+                reverse=True,
+            )
         return {
             "ttl": record.ttl,
             "resource_records": records,
@@ -533,7 +540,11 @@ class _BaseProvider(BaseProvider):
             filters = self.geo_filters
             if weight:
                 filters = self.weighted_shuffle_filters
-                records = sorted(records, key=lambda x: (x["meta"]["weight"], x['content']), reverse=True)
+                records = sorted(
+                    records,
+                    key=lambda x: (x["meta"]["weight"], x['content']),
+                    reverse=True,
+                )
             extra["resource_records"] = records
             extra["filters"] = filters
         else:

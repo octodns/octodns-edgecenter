@@ -632,6 +632,7 @@ class TestEdgeCenterProvider(TestCase):
         provider = EdgeCenterProvider("test_id", token="token")
         self.assertIsInstance(provider, _BaseProvider)
 
+
 class TestEdgeCenterProviderWeighted(TestCase):
     # expected = Zone("unit.tests.", [])
     expected = Zone("un.test.", [])
@@ -639,9 +640,9 @@ class TestEdgeCenterProviderWeighted(TestCase):
     source.populate(expected)
 
     weighted_shuffle_filters = [
-                {"type": "weighted_shuffle"},
-                {"type": "first_n", "limit": 1},
-            ]
+        {"type": "weighted_shuffle"},
+        {"type": "first_n", "limit": 1},
+    ]
 
     def test_populate(self):
         provider = EdgeCenterProvider("test_id", token="token")
@@ -742,7 +743,7 @@ class TestEdgeCenterProviderWeighted(TestCase):
         resp.json = Mock()
         provider._client._request = Mock(return_value=resp)
 
-         # TC: create dynamics
+        # TC: create dynamics
         provider._client._request.reset_mock()
         provider._client.zone_records = Mock(return_value=[])
 
@@ -765,12 +766,10 @@ class TestEdgeCenterProviderWeighted(TestCase):
                                     {"value": "3.3.3.3", "weight": 2},
                                     {"value": "2.3.3.3", "weight": 1},
                                     {"value": "1.3.3.3", "weight": 5},
-                            ]
-                            },
+                                ]
+                            }
                         },
-                        "rules": [
-                            {"pool": "weight"},
-                        ],
+                        "rules": [{"pool": "weight"}],
                     },
                 },
             )
@@ -790,12 +789,10 @@ class TestEdgeCenterProviderWeighted(TestCase):
                                     {"value": "ru-1.un.test.", "weight": 2},
                                     {"value": "ru-2.un.test.", "weight": 1},
                                     {"value": "eu.un.test.", "weight": 5},
-                            ]
-                            },
+                                ]
+                            }
                         },
-                        "rules": [
-                            {"pool": "weight"},
-                        ],
+                        "rules": [{"pool": "weight"}],
                     },
                 },
             )
@@ -815,10 +812,7 @@ class TestEdgeCenterProviderWeighted(TestCase):
                         "ttl": 300,
                         "filters": self.weighted_shuffle_filters,
                         "resource_records": [
-                            {
-                                "content": ["eu.un.test."],
-                                "meta": {"weight": 5},
-                            },
+                            {"content": ["eu.un.test."], "meta": {"weight": 5}},
                             {
                                 "content": ["ru-1.un.test."],
                                 "meta": {"weight": 2},
