@@ -634,7 +634,6 @@ class TestEdgeCenterProvider(TestCase):
 
 
 class TestEdgeCenterProviderWeighted(TestCase):
-    # expected = Zone("unit.tests.", [])
     expected = Zone("un.test.", [])
     source = YamlProvider("test2", join(dirname(__file__), "config"))
     source.populate(expected)

@@ -13,7 +13,7 @@ from octodns.provider import ProviderException
 from octodns.provider.base import BaseProvider
 from octodns.record import GeoCodes, Record
 
-__VERSION__ = '0.0.1'
+__VERSION__ = '0.0.2'
 
 
 class EdgeCenterClientException(ProviderException):
@@ -182,17 +182,15 @@ class _BaseProvider(BaseProvider):
             value = {"value": value_transform_fn(rr["content"][0])}
             countries = meta.get("countries", []) or []
             continents = meta.get("continents", []) or []
-            # weight = meta.get("weight", []) or []
 
             if meta.get("default", False):
                 pools[default_pool_name]["values"].append(value)
                 defaults.append(value["value"])
                 continue
             elif meta.get("weight", 0) > 0:
-                # elif len(weight) > 0:
                 value_weight = {
                     "value": value_transform_fn(rr["content"][0]),
-                    "weight": meta.get("weight", 0),
+                    "weight": meta["weight"],
                 }
                 pools["weight"]["values"].append(value_weight)
                 defaults.append(value["value"])
@@ -285,8 +283,6 @@ class _BaseProvider(BaseProvider):
             "dynamic": {"pools": pools, "rules": rules},
             "value": self._add_dot_if_need(defaults[0]),
         }
-
-    # _data_for_ALIAS = _data_for_CNAME
 
     def _data_for_multiple(self, _type, record):
         extra = dict()
@@ -418,12 +414,6 @@ class _BaseProvider(BaseProvider):
             if fls.get("type", "") == "weighted_shuffle":
                 want_filters = 2
                 break
-        # resource_records = record.get("resource_records", [])
-        # for rr in record["resource_records"]:
-        #     meta = rr.get("meta", {}) or {}
-        #     if meta.get("weight", 0) > 0:
-        #         want_filters = 2
-        #         break
         if len(filters) != want_filters:
             self.log.info(
                 "ignore %s has filters and their count is not %d",
@@ -482,9 +472,6 @@ class _BaseProvider(BaseProvider):
                         meta.setdefault("continents", []).append(continent)
             elif not weight:
                 meta["default"] = True
-
-            # if len(rule.data.get("weight", [])) > 0:
-            #     weight = True
 
             pool_values = set()
             pool_name = rule.data["pool"]
