@@ -1,4 +1,4 @@
-## v0.0.2 - 2023-02-?? - Support the filter of weight
+## v0.0.2 - 2023-02-15 - Support the filter of weight
 
 * Added filter support with type "weighted_shuffle"
 
