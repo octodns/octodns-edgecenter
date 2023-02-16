@@ -1,0 +1,106 @@
+---
+'':
+  # This is a dynamic record when used with providers that support it
+  dynamic:
+    # These are the pools of records that can be referenced and thus used by rules
+    pools:
+      weight:
+        # Implicit weight to the weight pool (below)
+        values:
+        - value: 5.5.5.5
+          weight: 25
+        - value: 6.6.6.6
+        - value: 7.7.7.7
+          weight: 75
+    # Rules that assign queries to pools
+    rules:
+    # No geos means match all queries
+    - pool: weight
+  ttl: 60
+  type: A
+  # These values become a non-healthchecked default pool
+  values:
+  - 5.5.5.5
+  - 6.6.6.6
+  - 7.7.7.7
+00.img:
+  dynamic:
+    pools:
+      weight:
+        # Implicit weight to the weight pool (below)
+        values:
+        - value: cl-dabdb3fc.edgecdn.ru.
+          weight: 2
+        - value: cl-dabdb3fc.edgecdn.ru.
+          # weight: 3
+        - value: cl-dabdb3fc.edgecdn.ru.
+          weight: 4
+    rules:
+    - pool: weight
+  ttl: 300
+  type: CNAME
+  value: cl-dabdb3fc.edgecdn.ru.
+01.img:
+  ttl: 300
+  type: CNAME
+  value: cl-dabdb3fc.edgecdn.ru.
+02.img:
+  ttl: 300
+  type: CNAME
+  value: cl-dabdb3fc.edgecdn.ru.
+03.img:
+  ttl: 300
+  type: CNAME
+  value: cl-dabdb3fc.edgecdn.ru.
+04.img:
+  ttl: 300
+  type: CNAME
+  value: cl-dabdb3fc.edgecdn.ru.
+o00.img:
+  dynamic:
+      pools:
+        weight:
+          # Implicit weight to the weight pool (below)
+          values:
+          - value: 146.158.48.128
+            weight: 25
+          - value: 146.158.52.128
+            # weight: 3
+          - value: 146.158.54.128
+            weight: 75
+      rules:
+      - pool: weight
+  ttl: 300
+  type: A
+  values:
+  - 146.158.48.128
+  - 146.158.52.128
+  - 146.158.54.128
+o01.img:
+  ttl: 300
+  type: A
+  values:
+  - 146.158.48.128
+  - 146.158.52.128
+  - 146.158.54.128
+o02.img:
+  ttl: 300
+  type: A
+  values:
+  - 146.158.48.128
+  - 146.158.52.128
+  - 146.158.54.128
+o03.img:
+  ttl: 300
+  type: A
+  values:
+  - 146.158.48.128
+  - 146.158.52.128
+  - 146.158.54.128
+o04.img:
+  ttl: 300
+  type: A
+  values:
+  - 146.158.48.128
+  - 146.158.52.128
+  - 146.158.54.128

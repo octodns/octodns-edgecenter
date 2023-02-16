@@ -1,3 +1,6 @@
+## v0.0.2 - 2023-02-?? - Support the filter of weight
+
+* Added filter support with type "weighted_shuffle"
 
 ## v0.0.1 - 2023-01-11 - Moving
 

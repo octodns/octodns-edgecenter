@@ -155,6 +155,21 @@ class _BaseProvider(BaseProvider):
             password=password,
         )
 
+        self.geo_filters = [
+            {"type": "geodns"},
+            {
+                "type": "default",
+                "limit": self.records_per_response,
+                "strict": False,
+            },
+            {"type": "first_n", "limit": self.records_per_response},
+        ]
+
+        self.weighted_shuffle_filters = [
+            {"type": "weighted_shuffle"},
+            {"type": "first_n", "limit": self.records_per_response},
+        ]
+
     def _add_dot_if_need(self, value):
         return f"{value}." if not value.endswith(".") else value
 
@@ -170,6 +185,14 @@ class _BaseProvider(BaseProvider):
 
             if meta.get("default", False):
                 pools[default_pool_name]["values"].append(value)
+                defaults.append(value["value"])
+                continue
+            elif meta.get("weight", 0) > 0:
+                value_weight = {
+                    "value": value_transform_fn(rr["content"][0]),
+                    "weight": meta["weight"],
+                }
+                pools["weight"]["values"].append(value_weight)
                 defaults.append(value["value"])
                 continue
             # defaults is false or missing and no conties or continents
@@ -387,6 +410,10 @@ class _BaseProvider(BaseProvider):
             return False
         want_filters = 3
         filters = record.get("filters", [])
+        for fls in filters:
+            if fls.get("type", "") == "weighted_shuffle":
+                want_filters = 2
+                break
         if len(filters) != want_filters:
             self.log.info(
                 "ignore %s has filters and their count is not %d",
@@ -394,8 +421,11 @@ class _BaseProvider(BaseProvider):
                 want_filters,
             )
             return True
+        want_types = enumerate(["geodns", "default", "first_n"])
+        if want_filters == 2:
+            want_types = enumerate(["weighted_shuffle", "first_n"])
         types = [v.get("type") for v in filters]
-        for i, want_type in enumerate(["geodns", "default", "first_n"]):
+        for i, want_type in want_types:
             if types[i] != want_type:
                 self.log.info(
                     "ignore %s, filters.%d.type is %s, want %s",
@@ -405,6 +435,8 @@ class _BaseProvider(BaseProvider):
                     want_type,
                 )
                 return True
+        if want_filters == 2:
+            return False
         limits = [filters[i].get("limit", 1) for i in [1, 2]]
         if limits[0] != limits[1]:
             self.log.info(
@@ -422,6 +454,9 @@ class _BaseProvider(BaseProvider):
         default_values = set(
             record.values if hasattr(record, "values") else [record.value]
         )
+        weight = False
+        if "weight" in record.dynamic.pools:
+            weight = True
         for rule in record.dynamic.rules:
             meta = dict()
             # build meta tags if geos information present
@@ -435,25 +470,29 @@ class _BaseProvider(BaseProvider):
                         meta.setdefault("countries", []).append(country)
                     else:
                         meta.setdefault("continents", []).append(continent)
-            else:
+            elif not weight:
                 meta["default"] = True
 
             pool_values = set()
             pool_name = rule.data["pool"]
             for value in record.dynamic.pools[pool_name].data["values"]:
                 v = value["value"]
+                if weight:
+                    meta = dict()
+                    meta["weight"] = value["weight"]
                 records.append({"content": [v], "meta": meta})
                 pool_values.add(v)
 
             default_pool_found |= default_values == pool_values
 
         # if default values doesn't match any pool values, then just add this
+        # values with no any metaif default values doesn't match any pool values, then just add this
         # values with no any meta
-        if not default_pool_found:
+        if not default_pool_found and not weight:
             for value in default_values:
                 records.append({"content": [value]})
 
-        return records
+        return records, weight
 
     def _params_for_single(self, record):
         return {
@@ -466,34 +505,35 @@ class _BaseProvider(BaseProvider):
     def _params_for_CNAME(self, record):
         if not record.dynamic:
             return self._params_for_single(record)
-
+        records, weight = self._params_for_dymanic(record)
+        filters = self.geo_filters
+        if weight:
+            filters = self.weighted_shuffle_filters
+            records = sorted(
+                records,
+                key=lambda x: (x["meta"]["weight"], x['content']),
+                reverse=True,
+            )
         return {
             "ttl": record.ttl,
-            "resource_records": self._params_for_dymanic(record),
-            "filters": [
-                {"type": "geodns"},
-                {
-                    "type": "default",
-                    "limit": self.records_per_response,
-                    "strict": False,
-                },
-                {"type": "first_n", "limit": self.records_per_response},
-            ],
+            "resource_records": records,
+            "filters": filters,
         }
 
     def _params_for_multiple(self, record):
         extra = dict()
         if record.dynamic:
-            extra["resource_records"] = self._params_for_dymanic(record)
-            extra["filters"] = [
-                {"type": "geodns"},
-                {
-                    "type": "default",
-                    "limit": self.records_per_response,
-                    "strict": False,
-                },
-                {"type": "first_n", "limit": self.records_per_response},
-            ]
+            records, weight = self._params_for_dymanic(record)
+            filters = self.geo_filters
+            if weight:
+                filters = self.weighted_shuffle_filters
+                records = sorted(
+                    records,
+                    key=lambda x: (x["meta"]["weight"], x['content']),
+                    reverse=True,
+                )
+            extra["resource_records"] = records
+            extra["filters"] = filters
         else:
             extra["resource_records"] = [
                 {"content": [value]} for value in record.values
