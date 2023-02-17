@@ -31,9 +31,9 @@
         values:
         - value: cl-dabdb3fc.edgecdn.ru.
           weight: 2
-        - value: cl-dabdb3fc.edgecdn.ru.
+        - value: cl-dabdb2fc.edgecdn.ru.
           # weight: 3
-        - value: cl-dabdb3fc.edgecdn.ru.
+        - value: cl-dabdb1fc.edgecdn.ru.
           weight: 4
     rules:
     - pool: weight
@@ -62,45 +62,45 @@ o00.img:
         weight:
           # Implicit weight to the weight pool (below)
           values:
-          - value: 146.158.48.128
+          - value: 1.1.1.1
             weight: 25
-          - value: 146.158.52.128
+          - value: 2.2.2.2
             # weight: 3
-          - value: 146.158.54.128
+          - value: 3.3.3.3
             weight: 75
       rules:
       - pool: weight
   ttl: 300
   type: A
   values:
-  - 146.158.48.128
-  - 146.158.52.128
-  - 146.158.54.128
+  - 1.1.1.1
+  - 2.2.2.2
+  - 3.3.3.3
 o01.img:
   ttl: 300
   type: A
   values:
-  - 146.158.48.128
-  - 146.158.52.128
-  - 146.158.54.128
+  - 1.1.1.1
+  - 2.2.2.2
+  - 3.3.3.3
 o02.img:
   ttl: 300
   type: A
   values:
-  - 146.158.48.128
-  - 146.158.52.128
-  - 146.158.54.128
+  - 1.1.1.1
+  - 2.2.2.2
+  - 3.3.3.3
 o03.img:
   ttl: 300
   type: A
   values:
-  - 146.158.48.128
-  - 146.158.52.128
-  - 146.158.54.128
+  - 1.1.1.1
+  - 2.2.2.2
+  - 3.3.3.3
 o04.img:
   ttl: 300
   type: A
   values:
-  - 146.158.48.128
-  - 146.158.52.128
-  - 146.158.54.128
+  - 1.1.1.1
+  - 2.2.2.2
+  - 3.3.3.3
