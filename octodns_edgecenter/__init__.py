@@ -141,6 +141,7 @@ class EdgeCenterClient(object):
 class _BaseProvider(BaseProvider):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = True
+    SUPPORTS_ROOT_NS = True
     SUPPORTS = set(("A", "AAAA", "NS", "MX", "TXT", "SRV", "CNAME", "PTR"))
 
     def __init__(self, id, api_url, auth_url, *args, **kwargs):
