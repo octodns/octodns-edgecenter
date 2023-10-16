@@ -142,7 +142,7 @@ class TestEdgeCenterProvider(TestCase):
                 mock.get(base, text=fh.read())
 
             zone = Zone("unit.tests.", [])
-            provider.populate(zone)
+            provider.populate(zone, lenient=True)
             self.assertEqual(16, len(zone.records))
             changes = self.expected.changes(zone, provider)
             self.assertEqual(11, len(changes))
@@ -487,6 +487,7 @@ class TestEdgeCenterProvider(TestCase):
                         "rules": [{"pool": "pool-1", "geos": ["EU"]}],
                     },
                 },
+                lenient=True,
             )
         )
         wanted.add_record(
@@ -536,6 +537,7 @@ class TestEdgeCenterProvider(TestCase):
                         "rules": [{"pool": "pool-1", "geos": ["EU"]}],
                     },
                 },
+                lenient=True,
             )
         )
 
