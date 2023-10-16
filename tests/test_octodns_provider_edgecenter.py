@@ -234,8 +234,8 @@ class TestEdgeCenterProvider(TestCase):
         plan = provider.plan(self.expected)
 
         # TC: create all
-        self.assertEqual(13, len(plan.changes))
-        self.assertEqual(13, provider.apply(plan))
+        self.assertEqual(14, len(plan.changes))
+        self.assertEqual(14, provider.apply(plan))
         self.assertFalse(plan.exists)
 
         provider._client._request.assert_has_calls(
@@ -255,6 +255,17 @@ class TestEdgeCenterProvider(TestCase):
                         "resource_records": [
                             {"content": ["1.2.3.4"]},
                             {"content": ["1.2.3.5"]},
+                        ],
+                    },
+                ),
+                call(
+                    'POST',
+                    'http://api/zones/unit.tests/unit.tests./NS',
+                    data={
+                        'ttl': 300,
+                        'resource_records': [
+                            {'content': ['ns1.edgedns.ru.']},
+                            {'content': ['ns2.edgedns.ru.']},
                         ],
                     },
                 ),
@@ -383,7 +394,7 @@ class TestEdgeCenterProvider(TestCase):
             ]
         )
         # expected number of total calls
-        self.assertEqual(16, provider._client._request.call_count)
+        self.assertEqual(17, provider._client._request.call_count)
 
         # TC: delete 1 and update 1
         provider._client._request.reset_mock()
