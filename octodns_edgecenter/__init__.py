@@ -15,7 +15,7 @@ from octodns.provider.base import BaseProvider
 from octodns.record import GeoCodes, Record
 
 # TODO: remove __VERSION__ with the next major version release
-__version__ = __VERSION__ = '0.0.2'
+__version__ = __VERSION__ = '0.0.3'
 
 
 class EdgeCenterClientException(ProviderException):
@@ -151,6 +151,7 @@ class _BaseProvider(BaseProvider):
         login = kwargs.pop("login", None)
         password = kwargs.pop("password", None)
         self.records_per_response = kwargs.pop("records_per_response", 1)
+        self.exclude_disabled = kwargs.pop("exclude_disabled", False)
         self.log.debug("__init__: id=%s", id)
         super().__init__(id, *args, **kwargs)
         self._client = EdgeCenterClient(
@@ -219,6 +220,7 @@ class _BaseProvider(BaseProvider):
 
             pools[geo_sets[geo_set]]["values"].append(value)
 
+        defaults.sort()
         return pools, geo_sets, defaults
 
     def _build_rules(self, pools, geo_sets):
@@ -383,6 +385,8 @@ class _BaseProvider(BaseProvider):
 
         values = defaultdict(defaultdict)
         records, exists = self.zone_records(zone)
+        if self.exclude_disabled:
+            records = self._exclude_disabled_records(records)
         for record in records:
             _type = record["type"].upper()
             if _type not in self.SUPPORTS:
@@ -411,6 +415,17 @@ class _BaseProvider(BaseProvider):
             exists,
         )
         return exists
+
+    def _exclude_disabled_records(self, records):
+        _return_records = []
+        for record in records:
+            _result_resource_record = []
+            for resource_record in record["resource_records"]:
+                if resource_record.get("enabled", True):
+                    _result_resource_record.append(resource_record)
+            record["resource_records"] = _result_resource_record
+            _return_records.append(record)
+        return _return_records
 
     def _should_ignore(self, record):
         name = record.get("name", "name-not-defined")

@@ -423,6 +423,25 @@
                     ]
                 }
             ]
+        },
+        {
+            "name": "disabled.unit.tests",
+            "type": "A",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "enabled": true,
+                    "content": [
+                        "1.2.3.4"
+                    ]
+                },
+                {
+                    "enabled": false,
+                    "content": [
+                        "4.3.2.1"
+                    ]
+                }
+            ]
         }
     ]
 }
