@@ -143,11 +143,11 @@ class TestEdgeCenterProvider(TestCase):
 
             zone = Zone("unit.tests.", [])
             provider.populate(zone, lenient=True)
-            self.assertEqual(16, len(zone.records))
+            self.assertEqual(17, len(zone.records))
             changes = self.expected.changes(zone, provider)
-            self.assertEqual(11, len(changes))
+            self.assertEqual(12, len(changes))
             self.assertEqual(
-                3, len([c for c in changes if isinstance(c, Create)])
+                4, len([c for c in changes if isinstance(c, Create)])
             )
             self.assertEqual(
                 1, len([c for c in changes if isinstance(c, Delete)])
@@ -155,6 +155,24 @@ class TestEdgeCenterProvider(TestCase):
             self.assertEqual(
                 7, len([c for c in changes if isinstance(c, Update)])
             )
+
+        # TC: Ignore disabled rrset
+        with requests_mock() as mock:
+            base = "https://api.edgecenter.ru/dns/v2/zones/unit.tests/rrsets"
+            with open("tests/fixtures/edgecenter-records.json") as fh:
+                mock.get(base, text=fh.read())
+
+            providerExludeDisabled = EdgeCenterProvider(
+                "test_id", token="token", exclude_disabled=True
+            )
+            zone = Zone("unit.tests.", [])
+            providerExludeDisabled.populate(zone, lenient=True)
+            self.assertIn("disabled", [r.name for r in zone.records])
+            disabled_record = next(
+                filter(lambda x: x.name == 'disabled', zone.records)
+            )
+            self.assertIn('1.2.3.4', disabled_record.values)
+            self.assertNotIn("4.3.2.1", disabled_record.values)
 
         # TC: no pools can be built
         with requests_mock() as mock:

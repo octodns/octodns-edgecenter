@@ -39,7 +39,7 @@
     - pool: weight
   ttl: 300
   type: CNAME
-  value: cl-dabdb3fc.edgecdn.ru.
+  value: cl-dabdb1fc.edgecdn.ru.
 01.img:
   ttl: 300
   type: CNAME
