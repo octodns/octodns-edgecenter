@@ -851,3 +851,250 @@ class TestEdgeCenterProviderWeighted(TestCase):
                 ),
             ]
         )
+
+
+class TestEdgeCenterProviderFailover(TestCase):
+    expected = Zone("failover.test.", [])
+    source = YamlProvider("test_failover", join(dirname(__file__), "config"))
+    source.populate(expected)
+
+    def test_populate(self):
+        provider = EdgeCenterProvider("test_id", token="token")
+
+        # TC: 400 - Bad Request.
+        with requests_mock() as mock:
+            mock.get(ANY, status_code=400, text='{"error":"bad body"}')
+
+            with self.assertRaises(EdgeCenterClientBadRequest) as ctx:
+                zone = Zone("failover.test.", [])
+                provider.populate(zone)
+            self.assertIn('"error":"bad body"', str(ctx.exception))
+
+        # TC: No diffs == no changes
+        with requests_mock() as mock:
+            base = "https://api.edgecenter.ru/dns/v2/zones/failover.test/rrsets"
+            with open(
+                "tests/fixtures/edgecenter-no-changes-failover.json"
+            ) as fh:
+                mock.get(base, text=fh.read())
+
+            zone = Zone("failover.test.", [])
+            provider.populate(zone)
+            self.assertEqual(len(self.expected.records), len(zone.records))
+            self.assertEqual(
+                {r.name for r in self.expected.records},
+                {r.name for r in zone.records},
+            )
+            changes = self.expected.changes(zone, provider)
+            self.assertEqual(0, len(changes))
+
+        # TC: 1 create (dynamic) + 1 removed + 1 modified
+        with requests_mock() as mock:
+            base = "https://api.edgecenter.ru/dns/v2/zones/failover.test/rrsets"
+            with open("tests/fixtures/edgecenter-records-failover.json") as fh:
+                mock.get(base, text=fh.read())
+
+            zone = Zone("failover.test.", [])
+            provider.populate(zone)
+            self.assertEqual(len(self.expected.records), len(zone.records))
+            changes = self.expected.changes(zone, provider)
+            self.assertEqual(3, len(changes))
+            self.assertEqual(
+                1, len([c for c in changes if isinstance(c, Create)])
+            )
+            self.assertEqual(
+                1, len([c for c in changes if isinstance(c, Delete)])
+            )
+            self.assertEqual(
+                1, len([c for c in changes if isinstance(c, Update)])
+            )
+
+        # TC: no pools can be built
+        with requests_mock() as mock:
+            base = "https://api.edgecenter.ru/dns/v2/zones/failover.test/rrsets"
+            mock.get(
+                base,
+                json={
+                    "rrsets": [
+                        {
+                            "name": "failower.test",
+                            "type": "A",
+                            "ttl": 60,
+                            "filters": [
+                                *provider.weighted_shuffle_filters,
+                                *provider.is_healthy_filters,
+                            ],
+                            "resource_records": [{"content": ["7.7.7.7"]}],
+                        }
+                    ]
+                },
+            )
+
+            zone = Zone("failover.test.", [])
+            with self.assertRaises(RuntimeError) as ctx:
+                provider.populate(zone)
+
+            self.assertTrue(
+                str(ctx.exception).startswith(
+                    "filter is enabled, but no pools where built for"
+                ),
+                f"{ctx.exception} - is not start from desired text",
+            )
+
+    def test_apply(self):
+        provider = EdgeCenterProvider(
+            "test_id", url="http://api", token="token", strict_supports=False
+        )
+
+        resp = Mock()
+        resp.json = Mock()
+        provider._client._request = Mock(return_value=resp)
+
+        # TC: create dynamics
+        provider._client._request.reset_mock()
+        provider._client.zone_records = Mock(return_value=[])
+
+        # Domain exists, we don't care about return
+        resp.json.side_effect = ["{}"]
+
+        wanted = Zone("failover.test.", [])
+        wanted.add_record(
+            Record.new(
+                wanted,
+                "a-simple",
+                {
+                    "ttl": 300,
+                    "type": "A",
+                    "value": "3.3.3.3",
+                    "octodns": {
+                        "failover": {
+                            "frequency": 15,
+                            "port": 80,
+                            "protocol": "TCP",
+                            "timeout": 10,
+                            "verify": True,
+                        }
+                    },
+                    "dynamic": {
+                        "pools": {
+                            "weight": {
+                                "values": [
+                                    {"value": "3.3.3.3", "weight": 2},
+                                    {"value": "2.3.3.3", "weight": 1},
+                                    {"value": "1.3.3.3", "weight": 5},
+                                ]
+                            }
+                        },
+                        "rules": [{"pool": "weight"}],
+                    },
+                },
+            )
+        )
+        wanted.add_record(
+            Record.new(
+                wanted,
+                "cname-simple",
+                {
+                    "ttl": 300,
+                    "type": "CNAME",
+                    "value": "en.failover.test.",
+                    "octodns": {
+                        "failover": {
+                            "frequency": 15,
+                            "port": 80,
+                            "protocol": "TCP",
+                            "timeout": 10,
+                            "verify": True,
+                        }
+                    },
+                    "dynamic": {
+                        "pools": {
+                            "weight": {
+                                "values": [
+                                    {
+                                        "value": "ru-1.failover.test.",
+                                        "weight": 2,
+                                    },
+                                    {
+                                        "value": "ru-2.failover.test.",
+                                        "weight": 1,
+                                    },
+                                    {"value": "eu.failover.test.", "weight": 5},
+                                ]
+                            }
+                        },
+                        "rules": [{"pool": "weight"}],
+                    },
+                },
+            )
+        )
+
+        plan = provider.plan(wanted)
+        self.assertTrue(plan.exists)
+        self.assertEqual(2, len(plan.changes))
+        self.assertEqual(2, provider.apply(plan))
+
+        provider._client._request.assert_has_calls(
+            [
+                call('GET', 'http://api/zones/failover.test'),
+                call(
+                    "POST",
+                    "http://api/zones/failover.test/a-simple.failover.test./A",
+                    data={
+                        "ttl": 300,
+                        "filters": [
+                            *provider.weighted_shuffle_filters,
+                            *provider.is_healthy_filters,
+                        ],
+                        "meta": {
+                            "failover": {
+                                "frequency": 15,
+                                "port": 80,
+                                "protocol": "TCP",
+                                "timeout": 10,
+                                "verify": True,
+                            }
+                        },
+                        "resource_records": [
+                            {"content": ["1.3.3.3"], "meta": {"weight": 5}},
+                            {"content": ["3.3.3.3"], "meta": {"weight": 2}},
+                            {"content": ["2.3.3.3"], "meta": {"weight": 1}},
+                        ],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/failover.test/cname-simple.failover.test./CNAME",
+                    data={
+                        "ttl": 300,
+                        "filters": [
+                            *provider.weighted_shuffle_filters,
+                            *provider.is_healthy_filters,
+                        ],
+                        "meta": {
+                            "failover": {
+                                "frequency": 15,
+                                "port": 80,
+                                "protocol": "TCP",
+                                "timeout": 10,
+                                "verify": True,
+                            }
+                        },
+                        "resource_records": [
+                            {
+                                "content": ["eu.failover.test."],
+                                "meta": {"weight": 5},
+                            },
+                            {
+                                "content": ["ru-1.failover.test."],
+                                "meta": {"weight": 2},
+                            },
+                            {
+                                "content": ["ru-2.failover.test."],
+                                "meta": {"weight": 1},
+                            },
+                        ],
+                    },
+                ),
+            ]
+        )
