@@ -178,6 +178,8 @@ class _BaseProvider(BaseProvider):
             {"type": "first_n", "limit": self.records_per_response},
         ]
 
+        self.is_healthy_filters = [{"type": "is_healthy", "strict": False}]
+
     def _add_dot_if_need(self, value):
         return f"{value}." if not value.endswith(".") else value
 
@@ -267,6 +269,12 @@ class _BaseProvider(BaseProvider):
         rules = self._build_rules(pools, geo_sets)
         return pools, rules, defaults
 
+    def _data_for_failover(self, record: dict) -> dict:
+        record_meta = record.get("meta", {})
+        failover_data = record_meta.get("failover", {})
+        # to fix: missed failover attribute validation
+        return failover_data
+
     def _data_for_single(self, _type, record):
         return {
             "ttl": record["ttl"],
@@ -285,10 +293,12 @@ class _BaseProvider(BaseProvider):
         pools, rules, defaults = self._data_for_dynamic(
             record, self._add_dot_if_need
         )
+        failover = self._data_for_failover(record)
         return {
             "ttl": record["ttl"],
             "type": _type,
             "dynamic": {"pools": pools, "rules": rules},
+            "octodns": {"failover": failover},
             "value": self._add_dot_if_need(defaults[0]),
         }
 
@@ -296,8 +306,10 @@ class _BaseProvider(BaseProvider):
         extra = dict()
         if record.get("filters") is not None:
             pools, rules, defaults = self._data_for_dynamic(record)
+            failover = self._data_for_failover(record)
             extra = {
                 "dynamic": {"pools": pools, "rules": rules},
+                "octodns": {"failover": failover},
                 "values": defaults,
             }
         else:
@@ -416,12 +428,33 @@ class _BaseProvider(BaseProvider):
         name = record.get("name", "name-not-defined")
         if record.get("filters") is None:
             return False
-        want_filters = 3
-        filters = record.get("filters", [])
-        for fls in filters:
-            if fls.get("type", "") == "weighted_shuffle":
-                want_filters = 2
-                break
+
+        want_filters = 0
+        want_types = None
+
+        filters = record.get("filters")
+        types = [fls.get("type", "") for fls in filters]
+
+        if "geodns" in types and "is_healthy" in types:
+            want_filters = 4
+            want_types = enumerate(
+                ["geodns", "default", "first_n", "is_healthy"]
+            )
+        elif "weighted_shuffle" in types and "is_healthy" in types:
+            want_filters = 3
+            want_types = enumerate(
+                ["weighted_shuffle", "first_n", "is_healthy"]
+            )
+        elif "geodns" in types:
+            want_filters = 3
+            want_types = enumerate(["geodns", "default", "first_n"])
+        elif "weighted_shuffle" in types:
+            want_filters = 2
+            want_types = enumerate(["weighted_shuffle", "first_n"])
+        elif "is_healthy" in types:
+            want_filters = 1
+            want_types = enumerate(["is_healthy"])
+
         if len(filters) != want_filters:
             self.log.info(
                 "ignore %s has filters and their count is not %d",
@@ -429,10 +462,7 @@ class _BaseProvider(BaseProvider):
                 want_filters,
             )
             return True
-        want_types = enumerate(["geodns", "default", "first_n"])
-        if want_filters == 2:
-            want_types = enumerate(["weighted_shuffle", "first_n"])
-        types = [v.get("type") for v in filters]
+
         for i, want_type in want_types:
             if types[i] != want_type:
                 self.log.info(
@@ -443,15 +473,11 @@ class _BaseProvider(BaseProvider):
                     want_type,
                 )
                 return True
-        if want_filters == 2:
-            return False
-        limits = [filters[i].get("limit", 1) for i in [1, 2]]
-        if limits[0] != limits[1]:
+
+        limits = {fls.get("limit") for fls in filters if "limit" in fls}
+        if limits and len(limits) != 1:
             self.log.info(
-                "ignore %s, filters.1.limit (%d) != filters.2.limit (%d)",
-                name,
-                limits[0],
-                limits[1],
+                "ignore %s, filters have different limit values", name
             )
             return True
         return False
@@ -502,6 +528,11 @@ class _BaseProvider(BaseProvider):
 
         return records, weight
 
+    def _params_for_failover(self, record: Record) -> dict:
+        failover_data = record.octodns.get("failover", {})
+        # to fix: missed failover attribute validation
+        return {"meta": {"failover": failover_data}}
+
     def _params_for_single(self, record):
         return {
             "ttl": record.ttl,
@@ -511,10 +542,13 @@ class _BaseProvider(BaseProvider):
     _params_for_PTR = _params_for_single
 
     def _params_for_CNAME(self, record):
+        extra = dict()
         if not record.dynamic:
             return self._params_for_single(record)
+
         records, weight = self._params_for_dymanic(record)
         filters = self.geo_filters
+
         if weight:
             filters = self.weighted_shuffle_filters
             records = sorted(
@@ -522,17 +556,22 @@ class _BaseProvider(BaseProvider):
                 key=lambda x: (x["meta"]["weight"], x['content']),
                 reverse=True,
             )
-        return {
-            "ttl": record.ttl,
-            "resource_records": records,
-            "filters": filters,
-        }
+
+        if record.octodns.get('failover'):
+            filters = [*filters, *self.is_healthy_filters]
+            extra.update(self._params_for_failover(record))
+
+        extra["resource_records"] = records
+        extra["filters"] = filters
+
+        return {"ttl": record.ttl, **extra}
 
     def _params_for_multiple(self, record):
         extra = dict()
         if record.dynamic:
             records, weight = self._params_for_dymanic(record)
             filters = self.geo_filters
+
             if weight:
                 filters = self.weighted_shuffle_filters
                 records = sorted(
@@ -540,12 +579,18 @@ class _BaseProvider(BaseProvider):
                     key=lambda x: (x["meta"]["weight"], x['content']),
                     reverse=True,
                 )
+
+            if record.octodns.get('failover'):
+                filters = [*filters, *self.is_healthy_filters]
+                extra.update(self._params_for_failover(record))
+
             extra["resource_records"] = records
             extra["filters"] = filters
         else:
             extra["resource_records"] = [
                 {"content": [value]} for value in record.values
             ]
+
         return {"ttl": record.ttl, **extra}
 
     _params_for_A = _params_for_multiple
