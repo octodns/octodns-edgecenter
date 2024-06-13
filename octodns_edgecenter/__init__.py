@@ -6,13 +6,24 @@ import http
 import logging
 import urllib.parse
 from collections import defaultdict
+from typing import Optional
 
 from requests import Session
 
 from octodns import __VERSION__ as octodns_version
 from octodns.provider import ProviderException
 from octodns.provider.base import BaseProvider
-from octodns.record import GeoCodes, Record
+from octodns.record import (
+    CnameValue,
+    GeoCodes,
+    Ipv4Value,
+    Ipv6Address,
+    Record,
+    Update,
+    ValueMixin,
+)
+from octodns.record.dynamic import _DynamicMixin
+from octodns.record.geo import _GeoMixin
 
 # TODO: remove __VERSION__ with the next major version release
 __version__ = __VERSION__ = '0.0.2'
@@ -31,6 +42,52 @@ class EdgeCenterClientBadRequest(EdgeCenterClientException):
 class EdgeCenterClientNotFound(EdgeCenterClientException):
     def __init__(self, r):
         super().__init__(r)
+
+
+class _FailoverMixin(object):
+    def changes(self, other, target):
+        if target.SUPPORTS_DYNAMIC:
+            if self.octodns.get('failover') != other.octodns.get('failover'):
+                return Update(self, other)
+        return super().changes(other, target)
+
+
+class EdgeCenterARecord(_FailoverMixin, _DynamicMixin, _GeoMixin, Record):
+    """
+    The ipv4 type is for dynamic records, that support failover.
+    Converts A type to current, if the data from API contains filters.
+    Should always be used if the yaml config contains a dynamic block.
+    """
+
+    _type = 'EdgeCenter/A'
+    _value_type = Ipv4Value
+
+
+class EdgeCenterAAAARecord(_FailoverMixin, _DynamicMixin, _GeoMixin, Record):
+    """
+    The ipv6 type is for dynamic records, that support failover.
+    Converts AAAA type to current, if the data from API contains filters.
+    Should always be used if the yaml config contains a dynamic block.
+    """
+
+    _type = 'EdgeCenter/AAAA'
+    _value_type = Ipv6Address
+
+
+class EdgeCenterCnameRecord(_FailoverMixin, _DynamicMixin, ValueMixin, Record):
+    """
+    The cname type is for dynamic records, that support failover.
+    Converts CNAME type to current, if the data from API contains filters.
+    Should always be used if the yaml config contains a dynamic block.
+    """
+
+    _type = 'EdgeCenter/CNAME'
+    _value_type = CnameValue
+
+
+Record.register_type(EdgeCenterARecord)
+Record.register_type(EdgeCenterAAAARecord)
+Record.register_type(EdgeCenterCnameRecord)
 
 
 class EdgeCenterClient(object):
@@ -143,7 +200,19 @@ class _BaseProvider(BaseProvider):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = True
     SUPPORTS_ROOT_NS = True
-    SUPPORTS = set(("A", "AAAA", "NS", "MX", "TXT", "SRV", "CNAME", "PTR"))
+    SUPPORTS = {
+        "EdgeCenter/A",
+        "EdgeCenter/AAAA",
+        "EdgeCenter/CNAME",
+        "A",
+        "AAAA",
+        "NS",
+        "MX",
+        "TXT",
+        "SRV",
+        "CNAME",
+        "PTR",
+    }
 
     def __init__(self, id, api_url, auth_url, *args, **kwargs):
         token = kwargs.pop("token", None)
@@ -237,9 +306,19 @@ class _BaseProvider(BaseProvider):
             )
             if len(geo_set) > 0:
                 rule["geos"] = list(geo_set)
+
+            if name == 'other' and 'weight' in pools:
+                continue
+
             rules.append(rule)
 
         return sorted(rules, key=lambda x: x["pool"])
+
+    @staticmethod
+    def _data_for_failover(record: dict) -> Optional[dict]:
+        record_meta = record.get("meta", {})
+        failover_data = record_meta.get("failover")
+        return failover_data
 
     def _data_for_dynamic(self, record, value_transform_fn=lambda x: x):
         default_pool = "other"
@@ -269,12 +348,6 @@ class _BaseProvider(BaseProvider):
         rules = self._build_rules(pools, geo_sets)
         return pools, rules, defaults
 
-    def _data_for_failover(self, record: dict) -> dict:
-        record_meta = record.get("meta", {})
-        failover_data = record_meta.get("failover", {})
-        # to fix: missed failover attribute validation
-        return failover_data
-
     def _data_for_single(self, _type, record):
         return {
             "ttl": record["ttl"],
@@ -290,26 +363,30 @@ class _BaseProvider(BaseProvider):
         if record.get("filters") is None:
             return self._data_for_single(_type, record)
 
+        _type = 'EdgeCenter/CNAME'
         pools, rules, defaults = self._data_for_dynamic(
             record, self._add_dot_if_need
         )
-        failover = self._data_for_failover(record)
+        failover_data = self._data_for_failover(record)
+        failover = {"failover": failover_data} if failover_data else {}
         return {
             "ttl": record["ttl"],
             "type": _type,
             "dynamic": {"pools": pools, "rules": rules},
-            "octodns": {"failover": failover},
+            "octodns": failover,
             "value": self._add_dot_if_need(defaults[0]),
         }
 
     def _data_for_multiple(self, _type, record):
         extra = dict()
         if record.get("filters") is not None:
+            _type = 'EdgeCenter/A' if _type == "A" else "EdgeCenter/AAAA"
             pools, rules, defaults = self._data_for_dynamic(record)
-            failover = self._data_for_failover(record)
+            failover_data = self._data_for_failover(record)
+            failover = {"failover": failover_data} if failover_data else {}
             extra = {
+                "octodns": failover,
                 "dynamic": {"pools": pools, "rules": rules},
-                "octodns": {"failover": failover},
                 "values": defaults,
             }
         else:
@@ -320,6 +397,7 @@ class _BaseProvider(BaseProvider):
                     for rr_value in resource_record["content"]
                 ]
             }
+
         return {"ttl": record["ttl"], "type": _type, **extra}
 
     _data_for_A = _data_for_multiple
@@ -451,9 +529,6 @@ class _BaseProvider(BaseProvider):
         elif "weighted_shuffle" in types:
             want_filters = 2
             want_types = enumerate(["weighted_shuffle", "first_n"])
-        elif "is_healthy" in types:
-            want_filters = 1
-            want_types = enumerate(["is_healthy"])
 
         if len(filters) != want_filters:
             self.log.info(
@@ -482,15 +557,20 @@ class _BaseProvider(BaseProvider):
             return True
         return False
 
+    @staticmethod
+    def _params_for_failover(record: Record) -> Optional[dict]:
+        failover_data = record.octodns.get("failover")
+        return failover_data
+
     def _params_for_dymanic(self, record):
         records = []
         default_pool_found = False
         default_values = set(
             record.values if hasattr(record, "values") else [record.value]
         )
-        weight = False
-        if "weight" in record.dynamic.pools:
-            weight = True
+
+        weight = True if "weight" in record.dynamic.pools else False
+
         for rule in record.dynamic.rules:
             meta = dict()
             # build meta tags if geos information present
@@ -520,18 +600,12 @@ class _BaseProvider(BaseProvider):
             default_pool_found |= default_values == pool_values
 
         # if default values doesn't match any pool values, then just add this
-        # values with no any metaif default values doesn't match any pool values, then just add this
         # values with no any meta
         if not default_pool_found and not weight:
             for value in default_values:
                 records.append({"content": [value]})
 
         return records, weight
-
-    def _params_for_failover(self, record: Record) -> dict:
-        failover_data = record.octodns.get("failover", {})
-        # to fix: missed failover attribute validation
-        return {"meta": {"failover": failover_data}}
 
     def _params_for_single(self, record):
         return {
@@ -559,7 +633,9 @@ class _BaseProvider(BaseProvider):
 
         if record.octodns.get('failover'):
             filters = [*filters, *self.is_healthy_filters]
-            extra.update(self._params_for_failover(record))
+            failover_data = self._params_for_failover(record)
+            if failover_data:
+                extra['meta'] = {"failover": failover_data}
 
         extra["resource_records"] = records
         extra["filters"] = filters
@@ -582,7 +658,9 @@ class _BaseProvider(BaseProvider):
 
             if record.octodns.get('failover'):
                 filters = [*filters, *self.is_healthy_filters]
-                extra.update(self._params_for_failover(record))
+                failover_data = self._params_for_failover(record)
+                if failover_data:
+                    extra['meta'] = {"failover": failover_data}
 
             extra["resource_records"] = records
             extra["filters"] = filters

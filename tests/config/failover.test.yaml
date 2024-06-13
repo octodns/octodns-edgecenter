@@ -1,22 +1,20 @@
 ---
 '':
-  # This is a dynamic record when used with providers that support it
+  # weight and failover
   dynamic:
-    # These are the pools of records that can be referenced and thus used by rules
     pools:
+      # pool that adds weight to resource records meta
       weight:
-        # Implicit weight to the weight pool (below)
         values:
-        - backup: true
-          value: 5.5.5.5
+        - value: 5.5.5.5
           weight: 25
         - value: 6.6.6.6
+          weight: 50
         - value: 7.7.7.7
           weight: 75
-    # Rules that assign queries to pools
     rules:
-    # No geos means match all queries
-    - pool: weight
+      - pool: weight
+  # failover configuration
   octodns:
     failover:
       frequency: 15
@@ -25,25 +23,204 @@
       timeout: 10
       verify: true
   ttl: 60
-  type: A
-  # These values become a non-healthchecked default pool
+  # ipv4 type supporting failover
+  type: EdgeCenter/A
+  # values not from pools are added without meta
   values:
   - 5.5.5.5
   - 6.6.6.6
   - 7.7.7.7
-00.img:
+
+01-other.dynamic:
+  # other and failover
+  dynamic:
+    pools:
+      # pool that adds default to resource records meta
+      other:
+        values:
+          - value: 1.1.1.1
+          - value: 2.2.2.2
+          - value: 3.3.3.3
+    rules:
+      - pool: other
+  # failover configuration
+  octodns:
+    failover:
+      frequency: 15
+      port: 80
+      protocol: TCP
+      timeout: 10
+      verify: true
+  ttl: 60
+  # ipv4 type supporting failover
+  type: EdgeCenter/A
+  # values not from pools are added without meta
+  values:
+  - 1.1.1.1
+  - 2.2.2.2
+  - 3.3.3.3
+
+02-other-weight.dynamic:
+  # other, weight and failover
+  dynamic:
+    pools:
+      # pool that adds default to resource records meta
+      other:
+        values:
+          - value: 1.1.1.1
+          - value: 2.2.2.2
+          - value: 3.3.3.3
+      # pool that adds weight to resource records meta
+      weight:
+        fallback: other
+        values:
+        - value: 5.5.5.5
+          weight: 25
+        - value: 6.6.6.6
+          weight: 50
+        - value: 7.7.7.7
+          weight: 75
+    rules:
+      - pool: weight
+  # failover configuration
+  octodns:
+    failover:
+      frequency: 15
+      port: 80
+      protocol: TCP
+      timeout: 10
+      verify: true
+  ttl: 60
+  # ipv4 type supporting failover
+  type: EdgeCenter/A
+  # values not from pools are added without meta
+  values:
+  - 1.1.1.1
+  - 2.2.2.2
+  - 3.3.3.3
+  - 5.5.5.5
+  - 6.6.6.6
+  - 7.7.7.7
+
+03-default-weight.dynamic:
+  # default, weight and failover
+  dynamic:
+    pools:
+      # pool that adds weight to resource records meta
+      weight:
+        values:
+        - value: 5.5.5.5
+          weight: 25
+        - value: 6.6.6.6
+          weight: 50
+        - value: 7.7.7.7
+          weight: 75
+    rules:
+      - pool: weight
+  # failover configuration
+  octodns:
+    failover:
+      frequency: 15
+      port: 80
+      protocol: TCP
+      timeout: 10
+      verify: true
+  ttl: 60
+  # ipv4 type supporting failover
+  type: EdgeCenter/A
+  # values not from pools are added without meta
+  values:
+  - 4.4.4.4
+  - 5.5.5.5
+  - 6.6.6.6
+  - 7.7.7.7
+
+04-default-other.dynamic:
+  # default, other and failover
+  dynamic:
+    pools:
+      # pool that adds default to resource records meta
+      other:
+        values:
+          - value: 1.1.1.1
+          - value: 2.2.2.2
+          - value: 3.3.3.3
+    rules:
+      - pool: other
+  # failover configuration
+  octodns:
+    failover:
+      frequency: 15
+      port: 80
+      protocol: TCP
+      timeout: 10
+      verify: true
+  ttl: 60
+  # ipv4 type supporting failover
+  type: EdgeCenter/A
+  # values not from pools are added without meta
+  values:
+  - 1.1.1.1
+  - 2.2.2.2
+  - 3.3.3.3
+  - 4.4.4.4
+
+05-default-other-weight.dynamic:
+  # default, other, weight and failover
+  dynamic:
+    pools:
+      # pool that adds default to resource records meta
+      other:
+        values:
+          - value: 1.1.1.1
+          - value: 2.2.2.2
+          - value: 3.3.3.3
+      # pool that adds weight to resource records meta
+      weight:
+        fallback: other
+        values:
+        - value: 5.5.5.5
+          weight: 25
+        - value: 6.6.6.6
+          weight: 50
+        - value: 7.7.7.7
+          weight: 75
+    rules:
+      - pool: weight
+  # failover configuration
+  octodns:
+    failover:
+      frequency: 15
+      port: 80
+      protocol: TCP
+      timeout: 10
+      verify: true
+  ttl: 60
+  # ipv4 type supporting failover
+  type: EdgeCenter/A
+  # values not from pools are added without meta
+  values:
+  - 1.1.1.1
+  - 2.2.2.2
+  - 3.3.3.3
+  - 4.4.4.4
+  - 5.5.5.5
+  - 6.6.6.6
+  - 7.7.7.7
+
+06-weight.dynamic:
+  # weight and failover
   dynamic:
     pools:
       weight:
-        # Implicit weight to the weight pool (below)
+        # pool that adds weight to resource records meta
         values:
         - value: cl-dabdb3fc.edgecdn.ru.
-          weight: 2
         - value: cl-dabdb2fc.edgecdn.ru.
         - value: cl-dabdb1fc.edgecdn.ru.
-          weight: 4
     rules:
     - pool: weight
+  # failover configuration
   octodns:
     failover:
       frequency: 15
@@ -52,72 +229,25 @@
       timeout: 10
       verify: true
   ttl: 300
-  type: CNAME
+  # cname type supporting failover
+  type: EdgeCenter/CNAME
+  # value not from pools are added without meta
   value: cl-dabdb3fc.edgecdn.ru.
-01.img:
+
+07.not-dynamic:
   ttl: 300
   type: CNAME
   value: cl-dabdb3fc.edgecdn.ru.
-02.img:
-  ttl: 300
-  type: CNAME
-  value: cl-dabdb3fc.edgecdn.ru.
-03.img:
-  ttl: 300
-  type: CNAME
-  value: cl-dabdb3fc.edgecdn.ru.
-04.img:
-  ttl: 300
-  type: CNAME
-  value: cl-dabdb3fc.edgecdn.ru.
-o00.img:
-  dynamic:
-      pools:
-        weight:
-          # Implicit weight to the weight pool (below)
-          values:
-          - value: 1.1.1.1
-            weight: 25
-          - value: 2.2.2.2
-          - value: 3.3.3.3
-            weight: 75
-      rules:
-      - pool: weight
-  octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+
+08.not-dynamic:
   ttl: 300
   type: A
   values:
   - 1.1.1.1
   - 2.2.2.2
   - 3.3.3.3
-o01.img:
-  ttl: 300
-  type: A
-  values:
-  - 1.1.1.1
-  - 2.2.2.2
-  - 3.3.3.3
-o02.img:
-  ttl: 300
-  type: A
-  values:
-  - 1.1.1.1
-  - 2.2.2.2
-  - 3.3.3.3
-o03.img:
-  ttl: 300
-  type: A
-  values:
-  - 1.1.1.1
-  - 2.2.2.2
-  - 3.3.3.3
-o04.img:
+
+09-for-remove.not-dynamic:
   ttl: 300
   type: A
   values:

@@ -888,7 +888,7 @@ class TestEdgeCenterProviderFailover(TestCase):
             changes = self.expected.changes(zone, provider)
             self.assertEqual(0, len(changes))
 
-        # TC: 1 create (dynamic) + 1 removed + 1 modified
+        # TC: 1 create + 1 removed + 1 modified (failover settings)
         with requests_mock() as mock:
             base = "https://api.edgecenter.ru/dns/v2/zones/failover.test/rrsets"
             with open("tests/fixtures/edgecenter-records-failover.json") as fh:
