@@ -551,11 +551,34 @@ class TestEdgeCenterProvider(TestCase):
                 lenient=True,
             )
         )
+        wanted.add_record(
+            Record.new(
+                wanted,
+                "cname-dflt-from-pool",
+                {
+                    "ttl": 300,
+                    "type": "CNAME",
+                    "value": "eu-2.unit.tests.",
+                    "dynamic": {
+                        "pools": {
+                            "pool-1": {
+                                "values": [
+                                    {"value": "eu-1.unit.tests."},
+                                    {"value": "eu-2.unit.tests."},
+                                ]
+                            }
+                        },
+                        "rules": [{"pool": "pool-1", "geos": ["EU"]}],
+                    },
+                },
+                lenient=True,
+            )
+        )
 
         plan = provider.plan(wanted)
         self.assertTrue(plan.exists)
-        self.assertEqual(4, len(plan.changes))
-        self.assertEqual(4, provider.apply(plan))
+        self.assertEqual(5, len(plan.changes))
+        self.assertEqual(5, provider.apply(plan))
 
         provider._client._request.assert_has_calls(
             [
@@ -566,11 +589,29 @@ class TestEdgeCenterProvider(TestCase):
                         "ttl": 300,
                         "filters": self.default_filters,
                         "resource_records": [
+                            {"content": ["en.unit.tests."]},
                             {
                                 "content": ["eu.unit.tests."],
                                 "meta": {"continents": ["EU"]},
                             },
-                            {"content": ["en.unit.tests."]},
+                        ],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/unit.tests/cname-dflt-from-pool.unit.tests./CNAME",
+                    data={
+                        "ttl": 300,
+                        "filters": self.default_filters,
+                        "resource_records": [
+                            {
+                                "content": ["eu-1.unit.tests."],
+                                "meta": {"continents": ["EU"]},
+                            },
+                            {
+                                "content": ["eu-2.unit.tests."],
+                                "meta": {"continents": ["EU"]},
+                            },
                         ],
                     },
                 ),
@@ -582,20 +623,20 @@ class TestEdgeCenterProvider(TestCase):
                         "filters": self.default_filters,
                         "resource_records": [
                             {
-                                "content": ["ru-1.unit.tests."],
-                                "meta": {"countries": ["RU"]},
-                            },
-                            {
-                                "content": ["ru-2.unit.tests."],
-                                "meta": {"countries": ["RU"]},
+                                "content": ["en.unit.tests."],
+                                "meta": {"default": True},
                             },
                             {
                                 "content": ["eu.unit.tests."],
                                 "meta": {"continents": ["EU"]},
                             },
                             {
-                                "content": ["en.unit.tests."],
-                                "meta": {"default": True},
+                                "content": ["ru-1.unit.tests."],
+                                "meta": {"countries": ["RU"]},
+                            },
+                            {
+                                "content": ["ru-2.unit.tests."],
+                                "meta": {"countries": ["RU"]},
                             },
                         ],
                     },
@@ -793,7 +834,7 @@ class TestEdgeCenterProviderWeighted(TestCase):
                 {
                     "ttl": 300,
                     "type": "CNAME",
-                    "value": "en.un.test.",
+                    "value": "eu.un.test.",
                     "dynamic": {
                         "pools": {
                             "weight": {
@@ -844,8 +885,8 @@ class TestEdgeCenterProviderWeighted(TestCase):
                         "filters": self.weighted_shuffle_filters,
                         "resource_records": [
                             {"content": ["1.3.3.3"], "meta": {"weight": 5}},
-                            {"content": ["3.3.3.3"], "meta": {"weight": 2}},
                             {"content": ["2.3.3.3"], "meta": {"weight": 1}},
+                            {"content": ["3.3.3.3"], "meta": {"weight": 2}},
                         ],
                     },
                 ),
@@ -888,7 +929,7 @@ class TestEdgeCenterProviderFailover(TestCase):
             changes = self.expected.changes(zone, provider)
             self.assertEqual(0, len(changes))
 
-        # TC: 1 create + 1 removed + 1 modified (failover settings)
+        # TC: 1 create (dynamic) + 1 removed + 1 modified (failover settings)
         with requests_mock() as mock:
             base = "https://api.edgecenter.ru/dns/v2/zones/failover.test/rrsets"
             with open("tests/fixtures/edgecenter-records-failover.json") as fh:
@@ -917,7 +958,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                 json={
                     "rrsets": [
                         {
-                            "name": "failower.test",
+                            "name": "failover.test",
                             "type": "A",
                             "ttl": 60,
                             "filters": [
@@ -958,23 +999,24 @@ class TestEdgeCenterProviderFailover(TestCase):
         resp.json.side_effect = ["{}"]
 
         wanted = Zone("failover.test.", [])
+        failover = {
+            "failover": {
+                "frequency": 15,
+                "port": 80,
+                "protocol": "TCP",
+                "timeout": 10,
+                "verify": True,
+            }
+        }
         wanted.add_record(
             Record.new(
                 wanted,
-                "a-simple",
+                "01-weight-simple",
                 {
                     "ttl": 300,
                     "type": "A",
                     "value": "3.3.3.3",
-                    "octodns": {
-                        "failover": {
-                            "frequency": 15,
-                            "port": 80,
-                            "protocol": "TCP",
-                            "timeout": 10,
-                            "verify": True,
-                        }
-                    },
+                    "octodns": failover,
                     "dynamic": {
                         "pools": {
                             "weight": {
@@ -993,24 +1035,17 @@ class TestEdgeCenterProviderFailover(TestCase):
         wanted.add_record(
             Record.new(
                 wanted,
-                "cname-simple",
+                "02-cname-simple",
                 {
                     "ttl": 300,
                     "type": "CNAME",
-                    "value": "en.failover.test.",
-                    "octodns": {
-                        "failover": {
-                            "frequency": 15,
-                            "port": 80,
-                            "protocol": "TCP",
-                            "timeout": 10,
-                            "verify": True,
-                        }
-                    },
+                    "value": "eu.failover.test.",
+                    "octodns": failover,
                     "dynamic": {
                         "pools": {
                             "weight": {
                                 "values": [
+                                    {"value": "eu.failover.test.", "weight": 5},
                                     {
                                         "value": "ru-1.failover.test.",
                                         "weight": 2,
@@ -1019,9 +1054,120 @@ class TestEdgeCenterProviderFailover(TestCase):
                                         "value": "ru-2.failover.test.",
                                         "weight": 1,
                                     },
-                                    {"value": "eu.failover.test.", "weight": 5},
                                 ]
                             }
+                        },
+                        "rules": [{"pool": "weight"}],
+                    },
+                },
+            )
+        )
+        wanted.add_record(
+            Record.new(
+                wanted,
+                "03-weight-other-simple",
+                {
+                    "ttl": 300,
+                    "type": "A",
+                    "value": "3.3.3.3",
+                    "octodns": failover,
+                    "dynamic": {
+                        "pools": {
+                            "other": {
+                                "values": [
+                                    {"value": "6.3.3.3"},
+                                    {"value": "5.3.3.3"},
+                                    {"value": "4.3.3.3"},
+                                ]
+                            },
+                            "weight": {
+                                "fallback": "other",
+                                "values": [
+                                    {"value": "3.3.3.3", "weight": 2},
+                                    {"value": "2.3.3.3", "weight": 1},
+                                    {"value": "1.3.3.3", "weight": 5},
+                                ],
+                            },
+                        },
+                        "rules": [{"pool": "weight"}],
+                    },
+                },
+            )
+        )
+        wanted.add_record(
+            Record.new(
+                wanted,
+                "04-weight-other-backup-simple",
+                {
+                    "ttl": 300,
+                    "type": "A",
+                    "value": "3.3.3.3",
+                    "octodns": failover,
+                    "dynamic": {
+                        "pools": {
+                            "backup": {
+                                "fallback": "other",
+                                "values": [
+                                    {"value": "3.3.3.3"},
+                                    {"value": "7.3.3.3"},
+                                    {"value": "8.3.3.3"},
+                                ],
+                            },
+                            "other": {
+                                "values": [
+                                    {"value": "6.3.3.3"},
+                                    {"value": "5.3.3.3"},
+                                    {"value": "4.3.3.3"},
+                                ]
+                            },
+                            "weight": {
+                                "fallback": "backup",
+                                "values": [
+                                    {"value": "3.3.3.3", "weight": 2},
+                                    {"value": "2.3.3.3", "weight": 1},
+                                    {"value": "1.3.3.3", "weight": 5},
+                                ],
+                            },
+                        },
+                        "rules": [{"pool": "weight"}],
+                    },
+                },
+            )
+        )
+        wanted.add_record(
+            Record.new(
+                wanted,
+                "05-weight-other-backup-default-simple",
+                {
+                    "ttl": 300,
+                    "type": "A",
+                    "value": "9.3.3.3",
+                    "octodns": failover,
+                    "dynamic": {
+                        "pools": {
+                            "backup": {
+                                "fallback": "other",
+                                "values": [
+                                    {"value": "3.3.3.3"},
+                                    {"value": "7.3.3.3"},
+                                    {"value": "8.3.3.3"},
+                                ],
+                            },
+                            "other": {
+                                "values": [
+                                    {"value": "6.3.3.3"},
+                                    {"value": "5.3.3.3"},
+                                    {"value": "4.3.3.3"},
+                                ]
+                            },
+                            "weight": {
+                                "fallback": "backup",
+                                "values": [
+                                    {"value": "3.3.3.3", "weight": 2},
+                                    {"value": "2.3.3.3", "weight": 1},
+                                    {"value": "1.3.3.3", "weight": 5},
+                                ],
+                            },
                         },
                         "rules": [{"pool": "weight"}],
                     },
@@ -1031,55 +1177,39 @@ class TestEdgeCenterProviderFailover(TestCase):
 
         plan = provider.plan(wanted)
         self.assertTrue(plan.exists)
-        self.assertEqual(2, len(plan.changes))
-        self.assertEqual(2, provider.apply(plan))
+        self.assertEqual(5, len(plan.changes))
+        self.assertEqual(5, provider.apply(plan))
 
         provider._client._request.assert_has_calls(
             [
                 call('GET', 'http://api/zones/failover.test'),
                 call(
                     "POST",
-                    "http://api/zones/failover.test/a-simple.failover.test./A",
+                    "http://api/zones/failover.test/01-weight-simple.failover.test./A",
                     data={
                         "ttl": 300,
                         "filters": [
                             *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
                         ],
-                        "meta": {
-                            "failover": {
-                                "frequency": 15,
-                                "port": 80,
-                                "protocol": "TCP",
-                                "timeout": 10,
-                                "verify": True,
-                            }
-                        },
+                        "meta": failover,
                         "resource_records": [
                             {"content": ["1.3.3.3"], "meta": {"weight": 5}},
-                            {"content": ["3.3.3.3"], "meta": {"weight": 2}},
                             {"content": ["2.3.3.3"], "meta": {"weight": 1}},
+                            {"content": ["3.3.3.3"], "meta": {"weight": 2}},
                         ],
                     },
                 ),
                 call(
                     "POST",
-                    "http://api/zones/failover.test/cname-simple.failover.test./CNAME",
+                    "http://api/zones/failover.test/02-cname-simple.failover.test./CNAME",
                     data={
                         "ttl": 300,
                         "filters": [
                             *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
                         ],
-                        "meta": {
-                            "failover": {
-                                "frequency": 15,
-                                "port": 80,
-                                "protocol": "TCP",
-                                "timeout": 10,
-                                "verify": True,
-                            }
-                        },
+                        "meta": failover,
                         "resource_records": [
                             {
                                 "content": ["eu.failover.test."],
@@ -1093,6 +1223,77 @@ class TestEdgeCenterProviderFailover(TestCase):
                                 "content": ["ru-2.failover.test."],
                                 "meta": {"weight": 1},
                             },
+                        ],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/failover.test/03-weight-other-simple.failover.test./A",
+                    data={
+                        "ttl": 300,
+                        "filters": [
+                            *provider.weighted_shuffle_filters,
+                            *provider.is_healthy_filters,
+                        ],
+                        "meta": failover,
+                        "resource_records": [
+                            {"content": ["1.3.3.3"], "meta": {"weight": 5}},
+                            {"content": ["2.3.3.3"], "meta": {"weight": 1}},
+                            {"content": ["3.3.3.3"], "meta": {"weight": 2}},
+                            {"content": ["4.3.3.3"], "meta": {"default": True}},
+                            {"content": ["5.3.3.3"], "meta": {"default": True}},
+                            {"content": ["6.3.3.3"], "meta": {"default": True}},
+                        ],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/failover.test/04-weight-other-backup-simple.failover.test./A",
+                    data={
+                        "ttl": 300,
+                        "filters": [
+                            *provider.weighted_shuffle_filters,
+                            *provider.is_healthy_filters,
+                        ],
+                        "meta": failover,
+                        "resource_records": [
+                            {"content": ["1.3.3.3"], "meta": {"weight": 5}},
+                            {"content": ["2.3.3.3"], "meta": {"weight": 1}},
+                            {
+                                "content": ["3.3.3.3"],
+                                "meta": {"backup": True, "weight": 2},
+                            },
+                            {"content": ["4.3.3.3"], "meta": {"default": True}},
+                            {"content": ["5.3.3.3"], "meta": {"default": True}},
+                            {"content": ["6.3.3.3"], "meta": {"default": True}},
+                            {"content": ["7.3.3.3"], "meta": {"backup": True}},
+                            {"content": ["8.3.3.3"], "meta": {"backup": True}},
+                        ],
+                    },
+                ),
+                call(
+                    "POST",
+                    "http://api/zones/failover.test/05-weight-other-backup-default-simple.failover.test./A",
+                    data={
+                        "ttl": 300,
+                        "filters": [
+                            *provider.weighted_shuffle_filters,
+                            *provider.is_healthy_filters,
+                        ],
+                        "meta": failover,
+                        "resource_records": [
+                            {"content": ["1.3.3.3"], "meta": {"weight": 5}},
+                            {"content": ["2.3.3.3"], "meta": {"weight": 1}},
+                            {
+                                "content": ["3.3.3.3"],
+                                "meta": {"backup": True, "weight": 2},
+                            },
+                            {"content": ["4.3.3.3"], "meta": {"default": True}},
+                            {"content": ["5.3.3.3"], "meta": {"default": True}},
+                            {"content": ["6.3.3.3"], "meta": {"default": True}},
+                            {"content": ["7.3.3.3"], "meta": {"backup": True}},
+                            {"content": ["8.3.3.3"], "meta": {"backup": True}},
+                            {"content": ["9.3.3.3"]},
                         ],
                     },
                 ),
