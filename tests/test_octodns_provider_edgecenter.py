@@ -939,6 +939,10 @@ class TestEdgeCenterProviderFailover(TestCase):
             provider.populate(zone)
             self.assertEqual(len(self.expected.records), len(zone.records))
             changes = self.expected.changes(zone, provider)
+            extra = provider._extra_changes(
+                existing=self.expected, desired=zone, changes=changes
+            )
+            changes += extra
             self.assertEqual(3, len(changes))
             self.assertEqual(
                 1, len([c for c in changes if isinstance(c, Create)])
@@ -999,7 +1003,7 @@ class TestEdgeCenterProviderFailover(TestCase):
         resp.json.side_effect = ["{}"]
 
         wanted = Zone("failover.test.", [])
-        failover = {
+        failover_data = {
             "failover": {
                 "frequency": 15,
                 "port": 80,
@@ -1016,7 +1020,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                     "ttl": 300,
                     "type": "A",
                     "value": "3.3.3.3",
-                    "octodns": failover,
+                    "octodns": {"edgecenter": failover_data},
                     "dynamic": {
                         "pools": {
                             "weight": {
@@ -1040,7 +1044,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                     "ttl": 300,
                     "type": "CNAME",
                     "value": "eu.failover.test.",
-                    "octodns": failover,
+                    "octodns": {"edgecenter": failover_data},
                     "dynamic": {
                         "pools": {
                             "weight": {
@@ -1070,7 +1074,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                     "ttl": 300,
                     "type": "A",
                     "value": "3.3.3.3",
-                    "octodns": failover,
+                    "octodns": {"edgecenter": failover_data},
                     "dynamic": {
                         "pools": {
                             "other": {
@@ -1102,7 +1106,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                     "ttl": 300,
                     "type": "A",
                     "value": "3.3.3.3",
-                    "octodns": failover,
+                    "octodns": {"edgecenter": failover_data},
                     "dynamic": {
                         "pools": {
                             "backup": {
@@ -1142,7 +1146,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                     "ttl": 300,
                     "type": "A",
                     "value": "9.3.3.3",
-                    "octodns": failover,
+                    "octodns": {"edgecenter": failover_data},
                     "dynamic": {
                         "pools": {
                             "backup": {
@@ -1192,7 +1196,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                             *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
                         ],
-                        "meta": failover,
+                        "meta": failover_data,
                         "resource_records": [
                             {"content": ["1.3.3.3"], "meta": {"weight": 5}},
                             {"content": ["2.3.3.3"], "meta": {"weight": 1}},
@@ -1209,7 +1213,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                             *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
                         ],
-                        "meta": failover,
+                        "meta": failover_data,
                         "resource_records": [
                             {
                                 "content": ["eu.failover.test."],
@@ -1235,7 +1239,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                             *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
                         ],
-                        "meta": failover,
+                        "meta": failover_data,
                         "resource_records": [
                             {"content": ["1.3.3.3"], "meta": {"weight": 5}},
                             {"content": ["2.3.3.3"], "meta": {"weight": 1}},
@@ -1255,7 +1259,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                             *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
                         ],
-                        "meta": failover,
+                        "meta": failover_data,
                         "resource_records": [
                             {"content": ["1.3.3.3"], "meta": {"weight": 5}},
                             {"content": ["2.3.3.3"], "meta": {"weight": 1}},
@@ -1280,7 +1284,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                             *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
                         ],
-                        "meta": failover,
+                        "meta": failover_data,
                         "resource_records": [
                             {"content": ["1.3.3.3"], "meta": {"weight": 5}},
                             {"content": ["2.3.3.3"], "meta": {"weight": 1}},

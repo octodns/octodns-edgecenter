@@ -13,17 +13,7 @@ from requests import Session
 from octodns import __VERSION__ as octodns_version
 from octodns.provider import ProviderException
 from octodns.provider.base import BaseProvider
-from octodns.record import (
-    CnameValue,
-    GeoCodes,
-    Ipv4Value,
-    Ipv6Address,
-    Record,
-    Update,
-    ValueMixin,
-)
-from octodns.record.dynamic import _DynamicMixin
-from octodns.record.geo import _GeoMixin
+from octodns.record import GeoCodes, Record, Update
 
 # TODO: remove __VERSION__ with the next major version release
 __version__ = __VERSION__ = '0.0.2'
@@ -42,52 +32,6 @@ class EdgeCenterClientBadRequest(EdgeCenterClientException):
 class EdgeCenterClientNotFound(EdgeCenterClientException):
     def __init__(self, r):
         super().__init__(r)
-
-
-class _FailoverMixin(object):
-    def changes(self, other, target):
-        if target.SUPPORTS_DYNAMIC:  # pragma: no branch
-            if self.octodns.get("failover") != other.octodns.get("failover"):
-                return Update(self, other)
-        return super().changes(other, target)
-
-
-class EdgeCenterARecord(_FailoverMixin, _DynamicMixin, _GeoMixin, Record):
-    """
-    The ipv4 type is for dynamic records, that support failover.
-    Converts A type to current, if the data from API contains filters.
-    Should always be used if the yaml config contains a dynamic block.
-    """
-
-    _type = "EdgeCenter/A"
-    _value_type = Ipv4Value
-
-
-class EdgeCenterAAAARecord(_FailoverMixin, _DynamicMixin, _GeoMixin, Record):
-    """
-    The ipv6 type is for dynamic records, that support failover.
-    Converts AAAA type to current, if the data from API contains filters.
-    Should always be used if the yaml config contains a dynamic block.
-    """
-
-    _type = "EdgeCenter/AAAA"
-    _value_type = Ipv6Address
-
-
-class EdgeCenterCnameRecord(_FailoverMixin, _DynamicMixin, ValueMixin, Record):
-    """
-    The cname type is for dynamic records, that support failover.
-    Converts CNAME type to current, if the data from API contains filters.
-    Should always be used if the yaml config contains a dynamic block.
-    """
-
-    _type = "EdgeCenter/CNAME"
-    _value_type = CnameValue
-
-
-Record.register_type(EdgeCenterARecord)
-Record.register_type(EdgeCenterAAAARecord)
-Record.register_type(EdgeCenterCnameRecord)
 
 
 class EdgeCenterClient(object):
@@ -200,19 +144,7 @@ class _BaseProvider(BaseProvider):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = True
     SUPPORTS_ROOT_NS = True
-    SUPPORTS = {
-        "EdgeCenter/A",
-        "EdgeCenter/AAAA",
-        "EdgeCenter/CNAME",
-        "A",
-        "AAAA",
-        "NS",
-        "MX",
-        "TXT",
-        "SRV",
-        "CNAME",
-        "PTR",
-    }
+    SUPPORTS = {"A", "AAAA", "NS", "MX", "TXT", "SRV", "CNAME", "PTR"}
     DEFAULT_POOL = "other"
     WEIGHT_POOL = "weight"
     BACKUP_POOL = "backup"
@@ -377,12 +309,13 @@ class _BaseProvider(BaseProvider):
         if record.get("filters") is None:
             return self._data_for_single(_type, record)
 
-        _type = "EdgeCenter/CNAME"
         pools, rules, defaults = self._data_for_dynamic(
             record, self._add_dot_if_need
         )
         failover_data = self._data_for_failover(record)
-        failover = {"failover": failover_data} if failover_data else {}
+        failover = (
+            {"edgecenter": {"failover": failover_data}} if failover_data else {}
+        )
         return {
             "ttl": record["ttl"],
             "type": _type,
@@ -393,10 +326,13 @@ class _BaseProvider(BaseProvider):
 
     def _data_for_multiple(self, _type, record):
         if record.get("filters") is not None:
-            _type = "EdgeCenter/A" if _type == "A" else "EdgeCenter/AAAA"
             pools, rules, defaults = self._data_for_dynamic(record)
             failover_data = self._data_for_failover(record)
-            failover = {"failover": failover_data} if failover_data else {}
+            failover = (
+                {"edgecenter": {"failover": failover_data}}
+                if failover_data
+                else {}
+            )
             extra = {
                 "octodns": failover,
                 "dynamic": {"pools": pools, "rules": rules},
@@ -573,7 +509,7 @@ class _BaseProvider(BaseProvider):
 
     @staticmethod
     def _params_for_failover(record: Record) -> Optional[dict]:
-        failover_data = record.octodns.get("failover")
+        failover_data = record.octodns.get("edgecenter", {}).get("failover")
         return failover_data
 
     def _params_for_dymanic(self, record):
@@ -668,7 +604,7 @@ class _BaseProvider(BaseProvider):
 
         records = sorted(records, key=lambda x: (x["content"]))
 
-        if record.octodns.get("failover"):
+        if record.octodns.get("edgecenter", {}).get("failover"):
             filters = [*filters, *self.is_healthy_filters]
             failover_data = self._params_for_failover(record)
             if failover_data:  # pragma: no branch
@@ -690,7 +626,7 @@ class _BaseProvider(BaseProvider):
 
             records = sorted(records, key=lambda x: (x["content"]))
 
-            if record.octodns.get("failover"):
+            if record.octodns.get("edgecenter", {}).get("failover"):
                 filters = [*filters, *self.is_healthy_filters]
                 failover_data = self._params_for_failover(record)
                 if failover_data:  # pragma: no branch
@@ -742,6 +678,34 @@ class _BaseProvider(BaseProvider):
                 for rec in record.values
             ],
         }
+
+    def _extra_changes_dynamic_needs_update(self, zone, record):
+        for rrset in zone.records:
+            if rrset == record and self._params_for_failover(
+                rrset
+            ) != self._params_for_failover(record):
+                return True
+
+        return False
+
+    def _extra_changes(self, existing, desired, changes, **kwargs):
+        self.log.debug("_extra_changes: desired=%s", desired.name)
+
+        # we'll skip extra checking for anything we're already going to change
+        changed = set([c.record for c in changes])
+        # ok, now it's time for the reason we're here, we need to go over all
+        # the desired records
+        extras = []
+        for record in desired.records:
+            if record in changed:
+                # already have a change for it, skipping
+                continue
+
+            if getattr(record, "dynamic", False):
+                if self._extra_changes_dynamic_needs_update(existing, record):
+                    extras.append(Update(record, record))
+
+        return extras
 
     def _apply_create(self, change):
         self.log.info("creating: %s", change)

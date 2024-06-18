@@ -17,7 +17,7 @@
     # No geos means match all queries
     - pool: weight
   ttl: 60
-  type: EdgeCenter/A
+  type: A
   # These values become a non-healthchecked default pool
   values:
   - 5.5.5.5
@@ -38,7 +38,7 @@
     rules:
     - pool: weight
   ttl: 300
-  type: EdgeCenter/CNAME
+  type: CNAME
   value: cl-dabdb3fc.edgecdn.ru.
 01.img:
   ttl: 300
@@ -71,7 +71,7 @@ o00.img:
       rules:
       - pool: weight
   ttl: 300
-  type: EdgeCenter/A
+  type: A
   values:
   - 1.1.1.1
   - 2.2.2.2

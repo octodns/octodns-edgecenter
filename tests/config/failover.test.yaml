@@ -16,15 +16,15 @@
       - pool: weight
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 60
-  # ipv4 type supporting failover
-  type: EdgeCenter/A
+  type: A
   # values not from pools are added without meta
   values:
   - 5.5.5.5
@@ -45,15 +45,15 @@
       - pool: other
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 60
-  # ipv4 type supporting failover
-  type: EdgeCenter/A
+  type: A
   # values not from pools are added without meta
   values:
   - 1.1.1.1
@@ -73,15 +73,15 @@
       - pool: backup
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 60
-  # ipv4 type supporting failover
-  type: EdgeCenter/A
+  type: A
   # values not from pools are added without meta
   values:
   - 8.8.8.8
@@ -111,15 +111,15 @@
       - pool: weight
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 60
-  # ipv4 type supporting failover
-  type: EdgeCenter/A
+  type: A
   # values not from pools are added without meta
   values:
   - 1.1.1.1
@@ -153,15 +153,15 @@
       - pool: weight
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 60
-  # ipv4 type supporting failover
-  type: EdgeCenter/A
+  type: A
   # values not from pools are added without meta
   values:
   - 5.5.5.5
@@ -187,15 +187,15 @@
       - pool: weight
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 60
-  # ipv4 type supporting failover
-  type: EdgeCenter/A
+  type: A
   # values not from pools are added without meta
   values:
   - 4.4.4.4
@@ -217,15 +217,15 @@
       - pool: other
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 60
-  # ipv4 type supporting failover
-  type: EdgeCenter/A
+  type: A
   # values not from pools are added without meta
   values:
   - 1.1.1.1
@@ -246,15 +246,15 @@
       - pool: backup
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 60
-  # ipv4 type supporting failover
-  type: EdgeCenter/A
+  type: A
   # values not from pools are added without meta
   values:
   - 4.4.4.4
@@ -281,15 +281,15 @@
       - pool: backup
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 60
-  # ipv4 type supporting failover
-  type: EdgeCenter/A
+  type: A
   # values not from pools are added without meta
   values:
   - 1.1.1.1
@@ -329,15 +329,15 @@
       - pool: weight
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 60
-  # ipv4 type supporting failover
-  type: EdgeCenter/A
+  type: A
   # values not from pools are added without meta
   values:
   - 1.1.1.1
@@ -373,15 +373,15 @@
       - pool: weight
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 60
-  # ipv4 type supporting failover
-  type: EdgeCenter/A
+  type: A
   # values not from pools are added without meta
   values:
   - 1.1.1.1
@@ -416,15 +416,15 @@
       - pool: weight
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 60
-  # ipv4 type supporting failover
-  type: EdgeCenter/A
+  type: A
   # values not from pools are added without meta
   values:
   - 4.4.4.4
@@ -454,15 +454,15 @@
       - pool: backup
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 60
-  # ipv4 type supporting failover
-  type: EdgeCenter/A
+  type: A
   # values not from pools are added without meta
   values:
   - 1.1.1.1
@@ -503,15 +503,15 @@
       - pool: weight
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 60
-  # ipv4 type supporting failover
-  type: EdgeCenter/A
+  type: A
   # values not from pools are added without meta
   values:
   - 1.1.1.1
@@ -538,15 +538,15 @@
     - pool: weight
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 300
-  # cname type supporting failover
-  type: EdgeCenter/CNAME
+  type: CNAME
   # value not from pools are added without meta
   value: cl-dabdb3fc.edgecdn.ru.
 
@@ -572,15 +572,15 @@
     - pool: other
   # failover configuration
   octodns:
-    failover:
-      frequency: 15
-      port: 80
-      protocol: TCP
-      timeout: 10
-      verify: true
+    edgecenter:
+      failover:
+        frequency: 15
+        port: 80
+        protocol: TCP
+        timeout: 10
+        verify: true
   ttl: 300
-  # cname type supporting failover
-  type: EdgeCenter/CNAME
+  type: CNAME
   # value not from pools are added without meta
   value: cl-dabdb5fc.edgecdn.ru.
 
