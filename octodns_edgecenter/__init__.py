@@ -6,7 +6,7 @@ import http
 import logging
 import urllib.parse
 from collections import defaultdict
-from typing import Optional
+from typing import Dict, Mapping
 
 from requests import Session
 
@@ -262,10 +262,48 @@ class _BaseProvider(BaseProvider):
         return sorted(rules, key=lambda x: not x["pool"].startswith("pool"))
 
     @staticmethod
-    def _data_for_failover(record: dict) -> Optional[dict]:
-        record_meta = record.get("meta", {})
-        failover_data = record_meta.get("failover")
-        return failover_data
+    def _data_for_failover(record: Mapping) -> Dict:
+        healthcheck = dict()
+        failover = dict()
+        failover_metadata = record.get("meta", {}).get("failover", {})
+
+        if not failover_metadata:
+            return failover_metadata
+
+        protocol = failover_metadata.get("protocol")
+        port = failover_metadata.get("port")
+
+        # TODO: remove ignored coverage check after add support ICMP in octodns
+        if protocol != "ICMP":  # pragma: no branch
+            healthcheck["port"] = port
+
+        if protocol == "HTTP":
+            healthcheck["host"] = failover_metadata.get("host")
+            healthcheck["path"] = failover_metadata.get("url")
+
+            failover["method"] = failover_metadata.get("method", "GET")
+            failover["tls"] = failover_metadata.get("tls", False)
+            # optional params
+            try:
+                failover["http_status_code"] = failover_metadata[
+                    "http_status_code"
+                ]
+                failover["regexp"] = failover_metadata["regexp"]
+            except KeyError:
+                pass
+
+        healthcheck["protocol"] = protocol
+
+        if failover.get("tls"):
+            failover["verify"] = failover_metadata.get("verify", False)
+
+        failover["timeout"] = failover_metadata.get("timeout", 10)
+        failover["frequency"] = failover_metadata.get("frequency", 10)
+
+        return {
+            "edgecenter": {"failover": {**failover}},
+            "healthcheck": {**healthcheck},
+        }
 
     def _data_for_dynamic(self, record, value_transform_fn=lambda x: x):
         pools, geo_sets, defaults = self._build_pools(
@@ -312,29 +350,20 @@ class _BaseProvider(BaseProvider):
         pools, rules, defaults = self._data_for_dynamic(
             record, self._add_dot_if_need
         )
-        failover_data = self._data_for_failover(record)
-        failover = (
-            {"edgecenter": {"failover": failover_data}} if failover_data else {}
-        )
+
         return {
             "ttl": record["ttl"],
             "type": _type,
             "dynamic": {"pools": pools, "rules": rules},
-            "octodns": failover,
+            "octodns": self._data_for_failover(record),
             "value": self._add_dot_if_need(defaults[0]),
         }
 
     def _data_for_multiple(self, _type, record):
         if record.get("filters") is not None:
             pools, rules, defaults = self._data_for_dynamic(record)
-            failover_data = self._data_for_failover(record)
-            failover = (
-                {"edgecenter": {"failover": failover_data}}
-                if failover_data
-                else {}
-            )
             extra = {
-                "octodns": failover,
+                "octodns": self._data_for_failover(record),
                 "dynamic": {"pools": pools, "rules": rules},
                 "values": defaults,
             }
@@ -508,9 +537,41 @@ class _BaseProvider(BaseProvider):
         return False
 
     @staticmethod
-    def _params_for_failover(record: Record) -> Optional[dict]:
-        failover_data = record.octodns.get("edgecenter", {}).get("failover")
-        return failover_data
+    def _params_for_failover(record: Record) -> Dict:
+        config = dict()
+        additional_data = record.octodns.get("edgecenter", {}).get(
+            "failover", {}
+        )
+
+        # TODO: remove ignored coverage check after add support ICMP in octodns
+        if record.healthcheck_protocol != "ICMP":  # pragma: no branch
+            config["port"] = record.healthcheck_port
+
+        if record.healthcheck_protocol in ("HTTP", "HTTPS"):
+            config["host"] = record.healthcheck_host()
+            config["url"] = record.healthcheck_path
+
+            config["method"] = additional_data.get("method", "GET")
+            config["tls"] = additional_data.get("tls", False)
+            # optional params
+            try:
+                config["http_status_code"] = additional_data["http_status_code"]
+                config["regexp"] = additional_data["regexp"]
+            except KeyError:
+                pass
+
+        if record.healthcheck_protocol == "HTTPS":
+            config["protocol"] = "HTTP"
+        else:
+            config["protocol"] = record.healthcheck_protocol
+
+        if config.get("tls"):
+            config["verify"] = additional_data.get("verify", False)
+
+        config["timeout"] = additional_data.get("timeout", 10)
+        config["frequency"] = additional_data.get("frequency", 10)
+
+        return config
 
     def _params_for_dymanic(self, record):
         records = []
@@ -604,7 +665,7 @@ class _BaseProvider(BaseProvider):
 
         records = sorted(records, key=lambda x: (x["content"]))
 
-        if record.octodns.get("edgecenter", {}).get("failover"):
+        if record.octodns.get("healthcheck"):
             filters = [*filters, *self.is_healthy_filters]
             failover_data = self._params_for_failover(record)
             if failover_data:  # pragma: no branch
@@ -626,7 +687,7 @@ class _BaseProvider(BaseProvider):
 
             records = sorted(records, key=lambda x: (x["content"]))
 
-            if record.octodns.get("edgecenter", {}).get("failover"):
+            if record.octodns.get("healthcheck"):
                 filters = [*filters, *self.is_healthy_filters]
                 failover_data = self._params_for_failover(record)
                 if failover_data:  # pragma: no branch

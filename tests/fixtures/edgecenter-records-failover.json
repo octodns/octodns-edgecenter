@@ -9,8 +9,7 @@
                     "frequency": 30,
                     "port": 80,
                     "protocol": "TCP",
-                    "timeout": 10,
-                    "verify": true
+                    "timeout": 10
                 }
             },
             "filters": [
@@ -61,10 +60,15 @@
             "meta": {
                 "failover": {
                     "frequency": 15,
+                    "host": "test.com",
+                    "http_status_code": 200,
+                    "method": "GET",
                     "port": 80,
-                    "protocol": "TCP",
+                    "protocol": "HTTP",
                     "timeout": 10,
-                    "verify": true
+                    "tls": true,
+                    "url": "/failover",
+                    "verify": false
                 }
             },
             "filters": [
@@ -115,10 +119,16 @@
             "meta": {
                 "failover": {
                     "frequency": 15,
-                    "port": 80,
-                    "protocol": "TCP",
+                    "host": "test.com",
+                    "http_status_code": 200,
+                    "method": "GET",
+                    "port": 443,
+                    "protocol": "HTTP",
+                    "regexp": "/folder/*",
                     "timeout": 10,
-                    "verify": true
+                    "tls": true,
+                    "url": "/failover",
+                    "verify": false
                 }
             },
             "filters": [
@@ -163,8 +173,7 @@
                     "frequency": 15,
                     "port": 80,
                     "protocol": "TCP",
-                    "timeout": 10,
-                    "verify": true
+                    "timeout": 10
                 }
             },
             "filters": [
@@ -241,8 +250,7 @@
                     "frequency": 15,
                     "port": 80,
                     "protocol": "TCP",
-                    "timeout": 10,
-                    "verify": true
+                    "timeout": 10
                 }
             },
             "filters": [
@@ -312,8 +320,7 @@
                     "frequency": 15,
                     "port": 80,
                     "protocol": "TCP",
-                    "timeout": 10,
-                    "verify": true
+                    "timeout": 10
                 }
             },
             "filters": [
@@ -371,8 +378,7 @@
                     "frequency": 15,
                     "port": 80,
                     "protocol": "TCP",
-                    "timeout": 10,
-                    "verify": true
+                    "timeout": 10
                 }
             },
             "filters": [
@@ -430,8 +436,7 @@
                     "frequency": 15,
                     "port": 80,
                     "protocol": "TCP",
-                    "timeout": 10,
-                    "verify": true
+                    "timeout": 10
                 }
             },
             "filters": [
@@ -481,8 +486,7 @@
                     "frequency": 15,
                     "port": 80,
                     "protocol": "TCP",
-                    "timeout": 10,
-                    "verify": true
+                    "timeout": 10
                 }
             },
             "filters": [
@@ -551,8 +555,7 @@
                     "frequency": 15,
                     "port": 80,
                     "protocol": "TCP",
-                    "timeout": 10,
-                    "verify": true
+                    "timeout": 10
                 }
             },
             "filters": [
@@ -646,8 +649,7 @@
                     "frequency": 15,
                     "port": 80,
                     "protocol": "TCP",
-                    "timeout": 10,
-                    "verify": true
+                    "timeout": 10
                 }
             },
             "filters": [
@@ -729,8 +731,7 @@
                     "frequency": 15,
                     "port": 80,
                     "protocol": "TCP",
-                    "timeout": 10,
-                    "verify": true
+                    "timeout": 10
                 }
             },
             "filters": [
@@ -805,8 +806,7 @@
                     "frequency": 15,
                     "port": 80,
                     "protocol": "TCP",
-                    "timeout": 10,
-                    "verify": true
+                    "timeout": 10
                 }
             },
             "filters": [
@@ -880,8 +880,7 @@
                     "frequency": 15,
                     "port": 80,
                     "protocol": "TCP",
-                    "timeout": 10,
-                    "verify": true
+                    "timeout": 10
                 }
             },
             "filters": [
@@ -980,8 +979,7 @@
                     "frequency": 15,
                     "port": 80,
                     "protocol": "TCP",
-                    "timeout": 10,
-                    "verify": true
+                    "timeout": 10
                 }
             },
             "filters": [
@@ -1034,8 +1032,7 @@
                     "frequency": 15,
                     "port": 80,
                     "protocol": "TCP",
-                    "timeout": 10,
-                    "verify": true
+                    "timeout": 10
                 }
             },
             "filters": [

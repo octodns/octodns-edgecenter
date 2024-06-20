@@ -19,10 +19,10 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
         timeout: 10
-        verify: true
+    healthcheck:
+      port: 80
+      protocol: TCP
   ttl: 60
   type: A
   # values not from pools are added without meta
@@ -48,10 +48,17 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
+        http_status_code: 200
+        method: GET
         timeout: 10
-        verify: true
+        tls: true
+        verify: false
+    healthcheck:
+      host: test.com
+      path: /failover
+      port: 80
+      protocol: HTTP
+
   ttl: 60
   type: A
   # values not from pools are added without meta
@@ -76,10 +83,17 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
+        http_status_code: 200
+        method: GET
+        regexp: /folder/*
         timeout: 10
-        verify: true
+        tls: true
+        verify: false
+    healthcheck:
+      host: test.com
+      path: /failover
+      port: 443
+      protocol: HTTPS
   ttl: 60
   type: A
   # values not from pools are added without meta
@@ -114,10 +128,10 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
         timeout: 10
-        verify: true
+    healthcheck:
+      port: 80
+      protocol: TCP
   ttl: 60
   type: A
   # values not from pools are added without meta
@@ -156,10 +170,10 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
         timeout: 10
-        verify: true
+    healthcheck:
+      port: 80
+      protocol: TCP
   ttl: 60
   type: A
   # values not from pools are added without meta
@@ -190,10 +204,10 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
         timeout: 10
-        verify: true
+    healthcheck:
+      port: 80
+      protocol: TCP
   ttl: 60
   type: A
   # values not from pools are added without meta
@@ -220,10 +234,10 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
         timeout: 10
-        verify: true
+    healthcheck:
+      port: 80
+      protocol: TCP
   ttl: 60
   type: A
   # values not from pools are added without meta
@@ -249,10 +263,10 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
         timeout: 10
-        verify: true
+    healthcheck:
+      port: 80
+      protocol: TCP
   ttl: 60
   type: A
   # values not from pools are added without meta
@@ -284,10 +298,10 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
         timeout: 10
-        verify: true
+    healthcheck:
+      port: 80
+      protocol: TCP
   ttl: 60
   type: A
   # values not from pools are added without meta
@@ -332,10 +346,10 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
         timeout: 10
-        verify: true
+    healthcheck:
+      port: 80
+      protocol: TCP
   ttl: 60
   type: A
   # values not from pools are added without meta
@@ -376,10 +390,10 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
         timeout: 10
-        verify: true
+    healthcheck:
+      port: 80
+      protocol: TCP
   ttl: 60
   type: A
   # values not from pools are added without meta
@@ -419,10 +433,10 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
         timeout: 10
-        verify: true
+    healthcheck:
+      port: 80
+      protocol: TCP
   ttl: 60
   type: A
   # values not from pools are added without meta
@@ -457,10 +471,10 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
         timeout: 10
-        verify: true
+    healthcheck:
+      port: 80
+      protocol: TCP
   ttl: 60
   type: A
   # values not from pools are added without meta
@@ -506,10 +520,10 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
         timeout: 10
-        verify: true
+    healthcheck:
+      port: 80
+      protocol: TCP
   ttl: 60
   type: A
   # values not from pools are added without meta
@@ -541,10 +555,10 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
         timeout: 10
-        verify: true
+    healthcheck:
+      port: 80
+      protocol: TCP
   ttl: 300
   type: CNAME
   # value not from pools are added without meta
@@ -575,10 +589,10 @@
     edgecenter:
       failover:
         frequency: 15
-        port: 80
-        protocol: TCP
         timeout: 10
-        verify: true
+    healthcheck:
+      port: 80
+      protocol: TCP
   ttl: 300
   type: CNAME
   # value not from pools are added without meta

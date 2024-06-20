@@ -1003,15 +1003,69 @@ class TestEdgeCenterProviderFailover(TestCase):
         resp.json.side_effect = ["{}"]
 
         wanted = Zone("failover.test.", [])
-        failover_data = {
+
+        tcp_base = {"port": 80, "protocol": "TCP"}
+        http_base = {
+            "port": 80,
+            "protocol": "HTTP",
+            "host": "test.com",
+            "path": "/failover",
+        }
+        https_base = {
+            "port": 443,
+            "protocol": "HTTPS",
+            "host": "test.com",
+            "path": "/failover",
+        }
+
+        common_additional = {"frequency": 10, "timeout": 10}
+        http_additional = {
+            "method": "GET",
+            "tls": True,
+            "http_status_code": 200,
+            "verify": False,
+        }
+
+        failover_tcp_data = {
+            "healthcheck": {**tcp_base},
+            "edgecenter": {"failover": {**common_additional}},
+        }
+        failover_http_data = {
+            "healthcheck": {**http_base},
+            "edgecenter": {
+                "failover": {**common_additional, **http_additional}
+            },
+        }
+        failover_https_data = {
+            "healthcheck": {**https_base},
+            "edgecenter": {
+                "failover": {**common_additional, **http_additional}
+            },
+        }
+
+        failover_tcp_meta = {
             "failover": {
-                "frequency": 15,
-                "port": 80,
-                "protocol": "TCP",
-                "timeout": 10,
-                "verify": True,
+                **failover_tcp_data["healthcheck"],
+                **failover_tcp_data["edgecenter"]["failover"],
             }
         }
+        failover_http_meta = {
+            "failover": {
+                **failover_http_data["healthcheck"],
+                **failover_http_data["edgecenter"]["failover"],
+                "url": failover_http_data["healthcheck"]["path"],
+            }
+        }
+        _ = failover_http_meta["failover"].pop("path")
+        failover_https_meta = {
+            "failover": {
+                **failover_https_data["healthcheck"],
+                **failover_https_data["edgecenter"]["failover"],
+                "url": failover_https_data["healthcheck"]["path"],
+                "protocol": "HTTP",
+            }
+        }
+        _ = failover_https_meta["failover"].pop("path")
         wanted.add_record(
             Record.new(
                 wanted,
@@ -1020,7 +1074,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                     "ttl": 300,
                     "type": "A",
                     "value": "3.3.3.3",
-                    "octodns": {"edgecenter": failover_data},
+                    "octodns": failover_tcp_data,
                     "dynamic": {
                         "pools": {
                             "weight": {
@@ -1044,7 +1098,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                     "ttl": 300,
                     "type": "CNAME",
                     "value": "eu.failover.test.",
-                    "octodns": {"edgecenter": failover_data},
+                    "octodns": failover_tcp_data,  # TODO: set failover_udp_data
                     "dynamic": {
                         "pools": {
                             "weight": {
@@ -1074,7 +1128,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                     "ttl": 300,
                     "type": "A",
                     "value": "3.3.3.3",
-                    "octodns": {"edgecenter": failover_data},
+                    "octodns": failover_tcp_data,  # TODO: set failover_icmp_data
                     "dynamic": {
                         "pools": {
                             "other": {
@@ -1106,7 +1160,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                     "ttl": 300,
                     "type": "A",
                     "value": "3.3.3.3",
-                    "octodns": {"edgecenter": failover_data},
+                    "octodns": failover_http_data,
                     "dynamic": {
                         "pools": {
                             "backup": {
@@ -1146,7 +1200,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                     "ttl": 300,
                     "type": "A",
                     "value": "9.3.3.3",
-                    "octodns": {"edgecenter": failover_data},
+                    "octodns": failover_https_data,
                     "dynamic": {
                         "pools": {
                             "backup": {
@@ -1196,7 +1250,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                             *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
                         ],
-                        "meta": failover_data,
+                        "meta": failover_tcp_meta,
                         "resource_records": [
                             {"content": ["1.3.3.3"], "meta": {"weight": 5}},
                             {"content": ["2.3.3.3"], "meta": {"weight": 1}},
@@ -1213,7 +1267,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                             *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
                         ],
-                        "meta": failover_data,
+                        "meta": failover_tcp_meta,  # TODO: set failover_udp_meta
                         "resource_records": [
                             {
                                 "content": ["eu.failover.test."],
@@ -1239,7 +1293,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                             *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
                         ],
-                        "meta": failover_data,
+                        "meta": failover_tcp_meta,  # TODO: set failover_icmp_meta
                         "resource_records": [
                             {"content": ["1.3.3.3"], "meta": {"weight": 5}},
                             {"content": ["2.3.3.3"], "meta": {"weight": 1}},
@@ -1259,7 +1313,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                             *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
                         ],
-                        "meta": failover_data,
+                        "meta": failover_http_meta,
                         "resource_records": [
                             {"content": ["1.3.3.3"], "meta": {"weight": 5}},
                             {"content": ["2.3.3.3"], "meta": {"weight": 1}},
@@ -1284,7 +1338,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                             *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
                         ],
-                        "meta": failover_data,
+                        "meta": failover_https_meta,
                         "resource_records": [
                             {"content": ["1.3.3.3"], "meta": {"weight": 5}},
                             {"content": ["2.3.3.3"], "meta": {"weight": 1}},
