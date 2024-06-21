@@ -131,7 +131,7 @@
         timeout: 10
     healthcheck:
       port: 80
-      protocol: TCP
+      protocol: UDP
   ttl: 60
   type: A
   # values not from pools are added without meta
@@ -172,8 +172,7 @@
         frequency: 15
         timeout: 10
     healthcheck:
-      port: 80
-      protocol: TCP
+      protocol: ICMP
   ttl: 60
   type: A
   # values not from pools are added without meta

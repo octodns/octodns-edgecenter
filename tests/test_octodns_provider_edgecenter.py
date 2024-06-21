@@ -1004,7 +1004,10 @@ class TestEdgeCenterProviderFailover(TestCase):
 
         wanted = Zone("failover.test.", [])
 
+        # data for octodns.healthcheck
         tcp_base = {"port": 80, "protocol": "TCP"}
+        udp_base = {"port": 80, "protocol": "UDP"}
+        icmp_base = {"protocol": "ICMP"}
         http_base = {
             "port": 80,
             "protocol": "HTTP",
@@ -1018,6 +1021,7 @@ class TestEdgeCenterProviderFailover(TestCase):
             "path": "/failover",
         }
 
+        # data for octodns.edgecenter.failover
         common_additional = {"frequency": 10, "timeout": 10}
         http_additional = {
             "method": "GET",
@@ -1028,6 +1032,14 @@ class TestEdgeCenterProviderFailover(TestCase):
 
         failover_tcp_data = {
             "healthcheck": {**tcp_base},
+            "edgecenter": {"failover": {**common_additional}},
+        }
+        failover_udp_data = {
+            "healthcheck": {**udp_base},
+            "edgecenter": {"failover": {**common_additional}},
+        }
+        failover_icmp_data = {
+            "healthcheck": {**icmp_base},
             "edgecenter": {"failover": {**common_additional}},
         }
         failover_http_data = {
@@ -1047,6 +1059,18 @@ class TestEdgeCenterProviderFailover(TestCase):
             "failover": {
                 **failover_tcp_data["healthcheck"],
                 **failover_tcp_data["edgecenter"]["failover"],
+            }
+        }
+        failover_udp_meta = {
+            "failover": {
+                **failover_udp_data["healthcheck"],
+                **failover_udp_data["edgecenter"]["failover"],
+            }
+        }
+        failover_icmp_meta = {
+            "failover": {
+                **failover_icmp_data["healthcheck"],
+                **failover_icmp_data["edgecenter"]["failover"],
             }
         }
         failover_http_meta = {
@@ -1098,7 +1122,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                     "ttl": 300,
                     "type": "CNAME",
                     "value": "eu.failover.test.",
-                    "octodns": failover_tcp_data,  # TODO: set failover_udp_data
+                    "octodns": failover_udp_data,
                     "dynamic": {
                         "pools": {
                             "weight": {
@@ -1128,7 +1152,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                     "ttl": 300,
                     "type": "A",
                     "value": "3.3.3.3",
-                    "octodns": failover_tcp_data,  # TODO: set failover_icmp_data
+                    "octodns": failover_icmp_data,
                     "dynamic": {
                         "pools": {
                             "other": {
@@ -1267,7 +1291,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                             *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
                         ],
-                        "meta": failover_tcp_meta,  # TODO: set failover_udp_meta
+                        "meta": failover_udp_meta,
                         "resource_records": [
                             {
                                 "content": ["eu.failover.test."],
@@ -1293,7 +1317,7 @@ class TestEdgeCenterProviderFailover(TestCase):
                             *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
                         ],
-                        "meta": failover_tcp_meta,  # TODO: set failover_icmp_meta
+                        "meta": failover_icmp_meta,
                         "resource_records": [
                             {"content": ["1.3.3.3"], "meta": {"weight": 5}},
                             {"content": ["2.3.3.3"], "meta": {"weight": 1}},

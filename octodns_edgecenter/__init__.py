@@ -273,8 +273,7 @@ class _BaseProvider(BaseProvider):
         protocol = failover_metadata.get("protocol")
         port = failover_metadata.get("port")
 
-        # TODO: remove ignored coverage check after add support ICMP in octodns
-        if protocol != "ICMP":  # pragma: no branch
+        if protocol != "ICMP":
             healthcheck["port"] = port
 
         if protocol == "HTTP":
@@ -543,8 +542,7 @@ class _BaseProvider(BaseProvider):
             "failover", {}
         )
 
-        # TODO: remove ignored coverage check after add support ICMP in octodns
-        if record.healthcheck_protocol != "ICMP":  # pragma: no branch
+        if record.healthcheck_protocol != "ICMP":
             config["port"] = record.healthcheck_port
 
         if record.healthcheck_protocol in ("HTTP", "HTTPS"):

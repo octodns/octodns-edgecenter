@@ -172,7 +172,7 @@
                 "failover": {
                     "frequency": 15,
                     "port": 80,
-                    "protocol": "TCP",
+                    "protocol": "UDP",
                     "timeout": 10
                 }
             },
@@ -248,8 +248,7 @@
             "meta": {
                 "failover": {
                     "frequency": 15,
-                    "port": 80,
-                    "protocol": "TCP",
+                    "protocol": "ICMP",
                     "timeout": 10
                 }
             },
