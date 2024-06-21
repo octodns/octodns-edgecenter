@@ -1,0 +1,1157 @@
+{
+    "rrsets": [
+        {
+            "name": "failover.test",
+            "type": "A",
+            "ttl": 60,
+            "meta": {
+                "failover": {
+                    "frequency": 30,
+                    "port": 80,
+                    "protocol": "TCP",
+                    "timeout": 10
+                }
+            },
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "5.5.5.5"
+                    ],
+                    "meta": {
+                        "weight": 25
+                    }
+                },
+                {
+                    "content": [
+                        "6.6.6.6"
+                    ],
+                    "meta": {
+                        "weight": 50
+                    }
+                },
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ],
+                    "meta": {
+                        "weight": 75
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "01-other.dynamic.failover.test",
+            "type": "A",
+            "ttl": 60,
+            "meta": {
+                "failover": {
+                    "frequency": 15,
+                    "host": "test.com",
+                    "http_status_code": 200,
+                    "method": "GET",
+                    "port": 80,
+                    "protocol": "HTTP",
+                    "timeout": 10,
+                    "tls": true,
+                    "url": "/failover",
+                    "verify": false
+                }
+            },
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "1.1.1.1"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "2.2.2.2"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "3.3.3.3"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "02-backup.dynamic.failover.test",
+            "type": "A",
+            "ttl": 60,
+            "meta": {
+                "failover": {
+                    "frequency": 15,
+                    "host": "test.com",
+                    "http_status_code": 200,
+                    "method": "GET",
+                    "port": 443,
+                    "protocol": "HTTP",
+                    "regexp": "/folder/*",
+                    "timeout": 10,
+                    "tls": true,
+                    "url": "/failover",
+                    "verify": false
+                }
+            },
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "8.8.8.8"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                },
+                {
+                    "content": [
+                        "9.9.9.9"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "03-other-weight.dynamic.failover.test",
+            "type": "A",
+            "ttl": 60,
+            "meta": {
+                "failover": {
+                    "frequency": 15,
+                    "port": 80,
+                    "protocol": "UDP",
+                    "timeout": 10
+                }
+            },
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "1.1.1.1"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "2.2.2.2"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "3.3.3.3"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "5.5.5.5"
+                    ],
+                    "meta": {
+                        "weight": 25
+                    }
+                },
+                {
+                    "content": [
+                        "6.6.6.6"
+                    ],
+                    "meta": {
+                        "weight": 50
+                    }
+                },
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ],
+                    "meta": {
+                        "weight": 75
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "04-backup-weight.dynamic.failover.test",
+            "type": "A",
+            "ttl": 60,
+            "meta": {
+                "failover": {
+                    "frequency": 15,
+                    "protocol": "ICMP",
+                    "timeout": 10
+                }
+            },
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "5.5.5.5"
+                    ],
+                    "meta": {
+                        "backup": true,
+                        "weight": 25
+                    }
+                },
+                {
+                    "content": [
+                        "6.6.6.6"
+                    ],
+                    "meta": {
+                        "weight": 50
+                    }
+                },
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ],
+                    "meta": {
+                        "weight": 75
+                    }
+                },
+                {
+                    "content": [
+                        "8.8.8.8"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                },
+                {
+                    "content": [
+                        "9.9.9.9"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "05-default-weight.dynamic.failover.test",
+            "type": "A",
+            "ttl": 60,
+            "meta": {
+                "failover": {
+                    "frequency": 15,
+                    "port": 80,
+                    "protocol": "TCP",
+                    "timeout": 10
+                }
+            },
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "4.4.4.4"
+                    ]
+                },
+                {
+                    "content": [
+                        "5.5.5.5"
+                    ],
+                    "meta": {
+                        "weight": 25
+                    }
+                },
+                {
+                    "content": [
+                        "6.6.6.6"
+                    ],
+                    "meta": {
+                        "weight": 50
+                    }
+                },
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ],
+                    "meta": {
+                        "weight": 75
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "06-default-other.dynamic.failover.test",
+            "type": "A",
+            "ttl": 60,
+            "meta": {
+                "failover": {
+                    "frequency": 15,
+                    "port": 80,
+                    "protocol": "TCP",
+                    "timeout": 10
+                }
+            },
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "1.1.1.1"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "2.2.2.2"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "3.3.3.3"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "4.4.4.4"
+                    ]
+                }
+            ]
+        },
+
+        {
+            "name": "07-default-backup.dynamic.failover.test",
+            "type": "A",
+            "ttl": 60,
+            "meta": {
+                "failover": {
+                    "frequency": 15,
+                    "port": 80,
+                    "protocol": "TCP",
+                    "timeout": 10
+                }
+            },
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "4.4.4.4"
+                    ]
+                },
+                {
+                    "content": [
+                        "8.8.8.8"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                },
+                {
+                    "content": [
+                        "9.9.9.9"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "08-other-backup.dynamic.failover.test",
+            "type": "A",
+            "ttl": 60,
+            "meta": {
+                "failover": {
+                    "frequency": 15,
+                    "port": 80,
+                    "protocol": "TCP",
+                    "timeout": 10
+                }
+            },
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "1.1.1.1"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "2.2.2.2"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "3.3.3.3"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "8.8.8.8"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                },
+                {
+                    "content": [
+                        "9.9.9.9"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "09-backup-other-weight.dynamic.failover.test",
+            "type": "A",
+            "ttl": 60,
+            "meta": {
+                "failover": {
+                    "frequency": 15,
+                    "port": 80,
+                    "protocol": "TCP",
+                    "timeout": 10
+                }
+            },
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "1.1.1.1"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "2.2.2.2"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "3.3.3.3"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "5.5.5.5"
+                    ],
+                    "meta": {
+                        "weight": 25,
+                        "backup": true
+                    }
+                },
+                {
+                    "content": [
+                        "6.6.6.6"
+                    ],
+                    "meta": {
+                        "weight": 50
+                    }
+                },
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ],
+                    "meta": {
+                        "weight": 75
+                    }
+                },
+                {
+                    "content": [
+                        "8.8.8.8"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                },
+                {
+                    "content": [
+                        "9.9.9.9"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "10-default-other-weight.dynamic.failover.test",
+            "type": "A",
+            "ttl": 60,
+            "meta": {
+                "failover": {
+                    "frequency": 15,
+                    "port": 80,
+                    "protocol": "TCP",
+                    "timeout": 10
+                }
+            },
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "1.1.1.1"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "2.2.2.2"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "3.3.3.3"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "4.4.4.4"
+                    ]
+                },
+                {
+                    "content": [
+                        "5.5.5.5"
+                    ],
+                    "meta": {
+                        "weight": 25
+                    }
+                },
+                {
+                    "content": [
+                        "6.6.6.6"
+                    ],
+                    "meta": {
+                        "weight": 50
+                    }
+                },
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ],
+                    "meta": {
+                        "weight": 75
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "11-default-backup-weight.dynamic.failover.test",
+            "type": "A",
+            "ttl": 60,
+            "meta": {
+                "failover": {
+                    "frequency": 15,
+                    "port": 80,
+                    "protocol": "TCP",
+                    "timeout": 10
+                }
+            },
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "4.4.4.4"
+                    ]
+                },
+                {
+                    "content": [
+                        "5.5.5.5"
+                    ],
+                    "meta": {
+                        "weight": 25,
+                        "backup": true
+                    }
+                },
+                {
+                    "content": [
+                        "6.6.6.6"
+                    ],
+                    "meta": {
+                        "weight": 50
+                    }
+                },
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ],
+                    "meta": {
+                        "weight": 75
+                    }
+                },
+                {
+                    "content": [
+                        "8.8.8.8"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                },
+                {
+                    "content": [
+                        "9.9.9.9"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "12-backup-default-other.dynamic.failover.test",
+            "type": "A",
+            "ttl": 60,
+            "meta": {
+                "failover": {
+                    "frequency": 15,
+                    "port": 80,
+                    "protocol": "TCP",
+                    "timeout": 10
+                }
+            },
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "1.1.1.1"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "2.2.2.2"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "3.3.3.3"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "4.4.4.4"
+                    ]
+                },
+                {
+                    "content": [
+                        "8.8.8.8"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                },
+                {
+                    "content": [
+                        "9.9.9.9"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "13-backup-default-other-weight.dynamic.failover.test",
+            "type": "A",
+            "ttl": 60,
+            "meta": {
+                "failover": {
+                    "frequency": 15,
+                    "port": 80,
+                    "protocol": "TCP",
+                    "timeout": 10
+                }
+            },
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "1.1.1.1"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "2.2.2.2"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "3.3.3.3"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "4.4.4.4"
+                    ]
+                },
+                {
+                    "content": [
+                        "5.5.5.5"
+                    ],
+                    "meta": {
+                        "weight": 25,
+                        "backup": true
+                    }
+                },
+                {
+                    "content": [
+                        "6.6.6.6"
+                    ],
+                    "meta": {
+                        "weight": 50
+                    }
+                },
+                {
+                    "content": [
+                        "7.7.7.7"
+                    ],
+                    "meta": {
+                        "weight": 75
+                    }
+                },
+                {
+                    "content": [
+                        "8.8.8.8"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                },
+                {
+                    "content": [
+                        "9.9.9.9"
+                    ],
+                    "meta": {
+                        "backup": true
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "14-weight.dynamic.failover.test",
+            "type": "CNAME",
+            "ttl": 300,
+            "meta": {
+                "failover": {
+                    "frequency": 15,
+                    "port": 80,
+                    "protocol": "TCP",
+                    "timeout": 10
+                }
+            },
+            "filters": [
+                {
+                    "type": "weighted_shuffle"
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
+                },
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "cl-dabdb3fc.edgecdn.ru"
+                    ],
+                    "meta": {
+                        "weight": 1
+                    }
+                },
+                {
+                    "content": [
+                        "cl-dabdb2fc.edgecdn.ru"
+                    ],
+                    "meta": {
+                        "weight": 1
+                    }
+                },
+                {
+                    "content": [
+                        "cl-dabdb1fc.edgecdn.ru"
+                    ],
+                    "meta": {
+                        "weight": 1
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "15-geo.dynamic.failover.test",
+            "type": "CNAME",
+            "ttl": 300,
+            "meta": {
+                "failover": {
+                    "frequency": 15,
+                    "port": 80,
+                    "protocol": "TCP",
+                    "timeout": 10
+                }
+            },
+            "filters": [
+                {
+                    "type": "geodns"
+                },
+                {
+                    "type": "default",
+                    "limit": 1,
+                    "strict": false
+                },
+                {
+                    "type": "first_n",
+                    "limit": 1},
+                {
+                    "type": "is_healthy",
+                    "strict": false
+                }
+            ],
+            "resource_records": [
+                {
+                    "content": [
+                        "cl-dabdb5fc.edgecdn.ru"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "cl-dabdb4fc.edgecdn.ru"
+                    ],
+                    "meta": {
+                        "default": true
+                    }
+                },
+                {
+                    "content": [
+                        "cl-dabdb3fc.edgecdn.ru"
+                    ],
+                    "meta": {
+                        "continents": ["EU"]
+                    }
+                },
+                {
+                    "content": [
+                        "cl-dabdb2fc.edgecdn.ru"
+                    ],
+                    "meta": {
+                        "continents": ["EU"]
+                    }
+                },
+                {
+                    "content": [
+                        "cl-dabdb1fc.edgecdn.ru"
+                    ],
+                    "meta": {
+                        "continents": ["EU"]
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "16.not-dynamic.failover.test",
+            "type": "CNAME",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "cl-dabdb3fc.edgecdn.ru."
+                    ]
+                }
+            ]
+        },
+
+        {
+            "name": "17.not-dynamic.failover.test",
+            "type": "A",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "1.1.1.1"
+                    ]
+                },
+                {
+                    "content": [
+                        "2.2.2.2"
+                    ]
+                },
+                {
+                    "content": [
+                        "3.3.3.3"
+                    ]
+                }
+            ]
+        },
+
+        {
+            "name": "19-for-create.not-dynamic.failover.test",
+            "type": "A",
+            "ttl": 300,
+            "resource_records": [
+                {
+                    "content": [
+                        "1.1.1.1"
+                    ]
+                },
+                {
+                    "content": [
+                        "2.2.2.2"
+                    ]
+                },
+                {
+                    "content": [
+                        "3.3.3.3"
+                    ]
+                }
+            ]
+        }
+    ]
+}

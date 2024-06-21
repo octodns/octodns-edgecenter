@@ -6,13 +6,14 @@ import http
 import logging
 import urllib.parse
 from collections import defaultdict
+from typing import Dict, Mapping
 
 from requests import Session
 
 from octodns import __VERSION__ as octodns_version
 from octodns.provider import ProviderException
 from octodns.provider.base import BaseProvider
-from octodns.record import GeoCodes, Record
+from octodns.record import GeoCodes, Record, Update
 
 # TODO: remove __VERSION__ with the next major version release
 __version__ = __VERSION__ = '0.0.2'
@@ -143,7 +144,10 @@ class _BaseProvider(BaseProvider):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = True
     SUPPORTS_ROOT_NS = True
-    SUPPORTS = set(("A", "AAAA", "NS", "MX", "TXT", "SRV", "CNAME", "PTR"))
+    SUPPORTS = {"A", "AAAA", "NS", "MX", "TXT", "SRV", "CNAME", "PTR"}
+    DEFAULT_POOL = "other"
+    WEIGHT_POOL = "weight"
+    BACKUP_POOL = "backup"
 
     def __init__(self, id, api_url, auth_url, *args, **kwargs):
         token = kwargs.pop("token", None)
@@ -178,10 +182,12 @@ class _BaseProvider(BaseProvider):
             {"type": "first_n", "limit": self.records_per_response},
         ]
 
+        self.is_healthy_filters = [{"type": "is_healthy", "strict": False}]
+
     def _add_dot_if_need(self, value):
         return f"{value}." if not value.endswith(".") else value
 
-    def _build_pools(self, record, default_pool_name, value_transform_fn):
+    def _build_pools(self, record, value_transform_fn):
         defaults = []
         geo_sets, pool_idx = dict(), 0
         pools = defaultdict(lambda: {"values": []})
@@ -192,18 +198,23 @@ class _BaseProvider(BaseProvider):
             continents = meta.get("continents", []) or []
 
             if meta.get("default", False):
-                pools[default_pool_name]["values"].append(value)
+                pools[self.DEFAULT_POOL]["values"].append(value)
                 defaults.append(value["value"])
                 continue
-            elif meta.get("weight", 0) > 0:
-                value_weight = {
-                    "value": value_transform_fn(rr["content"][0]),
-                    "weight": meta["weight"],
-                }
-                pools["weight"]["values"].append(value_weight)
+            elif meta.get("weight", 0) > 0 or meta.get("backup"):
+                if meta.get("weight", 0) > 0:
+                    value_weight = {
+                        "value": value_transform_fn(rr["content"][0]),
+                        "weight": meta["weight"],
+                    }
+                    pools[self.WEIGHT_POOL]["values"].append(value_weight)
+
+                if meta.get("backup"):
+                    pools[self.BACKUP_POOL]["values"].append(value)
+
                 defaults.append(value["value"])
                 continue
-            # defaults is false or missing and no conties or continents
+            # defaults is false or missing and no countries or continents
             elif len(continents) == 0 and len(countries) == 0:
                 defaults.append(value["value"])
                 continue
@@ -235,14 +246,67 @@ class _BaseProvider(BaseProvider):
             )
             if len(geo_set) > 0:
                 rule["geos"] = list(geo_set)
+
+            if name in (self.WEIGHT_POOL, self.BACKUP_POOL, self.DEFAULT_POOL):
+                continue
+
             rules.append(rule)
 
-        return sorted(rules, key=lambda x: x["pool"])
+        if self.WEIGHT_POOL in pools:
+            rules.append({"pool": self.WEIGHT_POOL})
+        elif self.BACKUP_POOL in pools:
+            rules.append({"pool": self.BACKUP_POOL})
+        elif self.DEFAULT_POOL in pools:
+            rules.append({"pool": self.DEFAULT_POOL})
+
+        return sorted(rules, key=lambda x: not x["pool"].startswith("pool"))
+
+    @staticmethod
+    def _data_for_failover(record: Mapping) -> Dict:
+        healthcheck = dict()
+        failover = dict()
+        failover_metadata = record.get("meta", {}).get("failover", {})
+
+        if not failover_metadata:
+            return failover_metadata
+
+        protocol = failover_metadata.get("protocol")
+        port = failover_metadata.get("port")
+
+        if protocol != "ICMP":
+            healthcheck["port"] = port
+
+        if protocol == "HTTP":
+            healthcheck["host"] = failover_metadata.get("host")
+            healthcheck["path"] = failover_metadata.get("url")
+
+            failover["method"] = failover_metadata.get("method", "GET")
+            failover["tls"] = failover_metadata.get("tls", False)
+            # optional params
+            try:
+                failover["http_status_code"] = failover_metadata[
+                    "http_status_code"
+                ]
+                failover["regexp"] = failover_metadata["regexp"]
+            except KeyError:
+                pass
+
+        healthcheck["protocol"] = protocol
+
+        if failover.get("tls"):
+            failover["verify"] = failover_metadata.get("verify", False)
+
+        failover["timeout"] = failover_metadata.get("timeout", 10)
+        failover["frequency"] = failover_metadata.get("frequency", 10)
+
+        return {
+            "edgecenter": {"failover": {**failover}},
+            "healthcheck": {**healthcheck},
+        }
 
     def _data_for_dynamic(self, record, value_transform_fn=lambda x: x):
-        default_pool = "other"
         pools, geo_sets, defaults = self._build_pools(
-            record, default_pool, value_transform_fn
+            record, value_transform_fn
         )
         if len(pools) == 0:
             raise RuntimeError(
@@ -258,11 +322,11 @@ class _BaseProvider(BaseProvider):
 
         # if at least one default RR was found then setup fallback for
         # other pools to default
-        if default_pool in pools:
-            for pool_name, pool in pools.items():
-                if pool_name == default_pool:
-                    continue
-                pool["fallback"] = default_pool
+        for pool_name, pool in pools.items():
+            if self.BACKUP_POOL in pools and pool_name == self.WEIGHT_POOL:
+                pool["fallback"] = self.BACKUP_POOL
+            elif self.DEFAULT_POOL in pools and pool_name != self.DEFAULT_POOL:
+                pool["fallback"] = self.DEFAULT_POOL
 
         rules = self._build_rules(pools, geo_sets)
         return pools, rules, defaults
@@ -285,18 +349,20 @@ class _BaseProvider(BaseProvider):
         pools, rules, defaults = self._data_for_dynamic(
             record, self._add_dot_if_need
         )
+
         return {
             "ttl": record["ttl"],
             "type": _type,
             "dynamic": {"pools": pools, "rules": rules},
+            "octodns": self._data_for_failover(record),
             "value": self._add_dot_if_need(defaults[0]),
         }
 
     def _data_for_multiple(self, _type, record):
-        extra = dict()
         if record.get("filters") is not None:
             pools, rules, defaults = self._data_for_dynamic(record)
             extra = {
+                "octodns": self._data_for_failover(record),
                 "dynamic": {"pools": pools, "rules": rules},
                 "values": defaults,
             }
@@ -308,6 +374,7 @@ class _BaseProvider(BaseProvider):
                     for rr_value in resource_record["content"]
                 ]
             }
+
         return {"ttl": record["ttl"], "type": _type, **extra}
 
     _data_for_A = _data_for_multiple
@@ -416,12 +483,30 @@ class _BaseProvider(BaseProvider):
         name = record.get("name", "name-not-defined")
         if record.get("filters") is None:
             return False
-        want_filters = 3
-        filters = record.get("filters", [])
-        for fls in filters:
-            if fls.get("type", "") == "weighted_shuffle":
-                want_filters = 2
-                break
+
+        want_filters = 0
+        want_types = None
+
+        filters = record.get("filters")
+        types = [fls.get("type", "") for fls in filters]
+
+        if "geodns" in types and "is_healthy" in types:
+            want_filters = 4
+            want_types = enumerate(
+                ["geodns", "default", "first_n", "is_healthy"]
+            )
+        elif "weighted_shuffle" in types and "is_healthy" in types:
+            want_filters = 3
+            want_types = enumerate(
+                ["weighted_shuffle", "first_n", "is_healthy"]
+            )
+        elif "geodns" in types:
+            want_filters = 3
+            want_types = enumerate(["geodns", "default", "first_n"])
+        elif "weighted_shuffle" in types:
+            want_filters = 2
+            want_types = enumerate(["weighted_shuffle", "first_n"])
+
         if len(filters) != want_filters:
             self.log.info(
                 "ignore %s has filters and their count is not %d",
@@ -429,10 +514,7 @@ class _BaseProvider(BaseProvider):
                 want_filters,
             )
             return True
-        want_types = enumerate(["geodns", "default", "first_n"])
-        if want_filters == 2:
-            want_types = enumerate(["weighted_shuffle", "first_n"])
-        types = [v.get("type") for v in filters]
+
         for i, want_type in want_types:
             if types[i] != want_type:
                 self.log.info(
@@ -443,30 +525,62 @@ class _BaseProvider(BaseProvider):
                     want_type,
                 )
                 return True
-        if want_filters == 2:
-            return False
-        limits = [filters[i].get("limit", 1) for i in [1, 2]]
-        if limits[0] != limits[1]:
+
+        limits = {fls.get("limit") for fls in filters if "limit" in fls}
+        if limits and len(limits) != 1:
             self.log.info(
-                "ignore %s, filters.1.limit (%d) != filters.2.limit (%d)",
-                name,
-                limits[0],
-                limits[1],
+                "ignore %s, filters have different limit values", name
             )
             return True
+
         return False
+
+    @staticmethod
+    def _params_for_failover(record: Record) -> Dict:
+        config = dict()
+        additional_data = record.octodns.get("edgecenter", {}).get(
+            "failover", {}
+        )
+
+        if record.healthcheck_protocol != "ICMP":
+            config["port"] = record.healthcheck_port
+
+        if record.healthcheck_protocol in ("HTTP", "HTTPS"):
+            config["host"] = record.healthcheck_host()
+            config["url"] = record.healthcheck_path
+
+            config["method"] = additional_data.get("method", "GET")
+            config["tls"] = additional_data.get("tls", False)
+            # optional params
+            try:
+                config["http_status_code"] = additional_data["http_status_code"]
+                config["regexp"] = additional_data["regexp"]
+            except KeyError:
+                pass
+
+        if record.healthcheck_protocol == "HTTPS":
+            config["protocol"] = "HTTP"
+        else:
+            config["protocol"] = record.healthcheck_protocol
+
+        if config.get("tls"):
+            config["verify"] = additional_data.get("verify", False)
+
+        config["timeout"] = additional_data.get("timeout", 10)
+        config["frequency"] = additional_data.get("frequency", 10)
+
+        return config
 
     def _params_for_dymanic(self, record):
         records = []
-        default_pool_found = False
         default_values = set(
             record.values if hasattr(record, "values") else [record.value]
         )
-        weight = False
-        if "weight" in record.dynamic.pools:
-            weight = True
+
         for rule in record.dynamic.rules:
             meta = dict()
+            pool_name = rule.data["pool"]
+
             # build meta tags if geos information present
             if len(rule.data.get("geos", [])) > 0:
                 for geo_code in rule.data["geos"]:
@@ -478,29 +592,55 @@ class _BaseProvider(BaseProvider):
                         meta.setdefault("countries", []).append(country)
                     else:
                         meta.setdefault("continents", []).append(continent)
-            elif not weight:
-                meta["default"] = True
+            elif pool_name in (  # pragma: no branch
+                self.WEIGHT_POOL,
+                self.BACKUP_POOL,
+                self.DEFAULT_POOL,
+            ):
+                continue
 
-            pool_values = set()
-            pool_name = rule.data["pool"]
             for value in record.dynamic.pools[pool_name].data["values"]:
                 v = value["value"]
-                if weight:
-                    meta = dict()
-                    meta["weight"] = value["weight"]
                 records.append({"content": [v], "meta": meta})
-                pool_values.add(v)
 
-            default_pool_found |= default_values == pool_values
+                if v in default_values:
+                    default_values.remove(v)
+
+        for pool_name in (
+            self.WEIGHT_POOL,
+            self.BACKUP_POOL,
+            self.DEFAULT_POOL,
+        ):
+            if pool_name in record.dynamic.pools:
+                for value in record.dynamic.pools[pool_name].data["values"]:
+                    meta = dict()
+                    v = value["value"]
+
+                    if pool_name == self.WEIGHT_POOL:
+                        meta = {"weight": value["weight"]}
+                    elif pool_name == self.BACKUP_POOL:
+                        for rr in records:
+                            if v in rr["content"]:
+                                rr["meta"]["backup"] = True
+                                break
+                        else:
+                            meta = {"backup": True}
+                    elif pool_name == self.DEFAULT_POOL:  # pragma: no branch
+                        meta = {"default": True}
+
+                    if meta:
+                        records.append({"content": [v], "meta": meta})
+
+                    if v in default_values:
+                        default_values.remove(v)
 
         # if default values doesn't match any pool values, then just add this
-        # values with no any metaif default values doesn't match any pool values, then just add this
         # values with no any meta
-        if not default_pool_found and not weight:
+        if default_values:
             for value in default_values:
                 records.append({"content": [value]})
 
-        return records, weight
+        return records
 
     def _params_for_single(self, record):
         return {
@@ -511,41 +651,53 @@ class _BaseProvider(BaseProvider):
     _params_for_PTR = _params_for_single
 
     def _params_for_CNAME(self, record):
+        extra = dict()
         if not record.dynamic:
             return self._params_for_single(record)
-        records, weight = self._params_for_dymanic(record)
+
+        records = self._params_for_dymanic(record)
         filters = self.geo_filters
-        if weight:
+
+        if self.WEIGHT_POOL in record.dynamic.pools:
             filters = self.weighted_shuffle_filters
-            records = sorted(
-                records,
-                key=lambda x: (x["meta"]["weight"], x['content']),
-                reverse=True,
-            )
-        return {
-            "ttl": record.ttl,
-            "resource_records": records,
-            "filters": filters,
-        }
+
+        records = sorted(records, key=lambda x: (x["content"]))
+
+        if record.octodns.get("healthcheck"):
+            filters = [*filters, *self.is_healthy_filters]
+            failover_data = self._params_for_failover(record)
+            if failover_data:  # pragma: no branch
+                extra["meta"] = {"failover": failover_data}
+
+        extra["resource_records"] = records
+        extra["filters"] = filters
+
+        return {"ttl": record.ttl, **extra}
 
     def _params_for_multiple(self, record):
         extra = dict()
         if record.dynamic:
-            records, weight = self._params_for_dymanic(record)
+            records = self._params_for_dymanic(record)
             filters = self.geo_filters
-            if weight:
+
+            if self.WEIGHT_POOL in record.dynamic.pools:
                 filters = self.weighted_shuffle_filters
-                records = sorted(
-                    records,
-                    key=lambda x: (x["meta"]["weight"], x['content']),
-                    reverse=True,
-                )
+
+            records = sorted(records, key=lambda x: (x["content"]))
+
+            if record.octodns.get("healthcheck"):
+                filters = [*filters, *self.is_healthy_filters]
+                failover_data = self._params_for_failover(record)
+                if failover_data:  # pragma: no branch
+                    extra["meta"] = {"failover": failover_data}
+
             extra["resource_records"] = records
             extra["filters"] = filters
         else:
             extra["resource_records"] = [
                 {"content": [value]} for value in record.values
             ]
+
         return {"ttl": record.ttl, **extra}
 
     _params_for_A = _params_for_multiple
@@ -585,6 +737,34 @@ class _BaseProvider(BaseProvider):
                 for rec in record.values
             ],
         }
+
+    def _extra_changes_dynamic_needs_update(self, zone, record):
+        for rrset in zone.records:
+            if rrset == record and self._params_for_failover(
+                rrset
+            ) != self._params_for_failover(record):
+                return True
+
+        return False
+
+    def _extra_changes(self, existing, desired, changes, **kwargs):
+        self.log.debug("_extra_changes: desired=%s", desired.name)
+
+        # we'll skip extra checking for anything we're already going to change
+        changed = set([c.record for c in changes])
+        # ok, now it's time for the reason we're here, we need to go over all
+        # the desired records
+        extras = []
+        for record in desired.records:
+            if record in changed:
+                # already have a change for it, skipping
+                continue
+
+            if getattr(record, "dynamic", False):
+                if self._extra_changes_dynamic_needs_update(existing, record):
+                    extras.append(Update(record, record))
+
+        return extras
 
     def _apply_create(self, change):
         self.log.info("creating: %s", change)
