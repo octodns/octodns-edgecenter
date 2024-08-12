@@ -113,7 +113,7 @@ class TestEdgeCenterProvider(TestCase):
 
             zone = Zone("unit.tests.", [])
             provider.populate(zone)
-            self.assertEqual(14, len(zone.records))
+            self.assertEqual(15, len(zone.records))
             self.assertEqual(
                 {
                     "",
@@ -121,6 +121,7 @@ class TestEdgeCenterProvider(TestCase):
                     "_pop3._tcp",
                     "_srv._tcp",
                     "aaaa",
+                    "caa",
                     "cname",
                     "excluded",
                     "mx",
@@ -143,7 +144,7 @@ class TestEdgeCenterProvider(TestCase):
 
             zone = Zone("unit.tests.", [])
             provider.populate(zone, lenient=True)
-            self.assertEqual(16, len(zone.records))
+            self.assertEqual(17, len(zone.records))
             changes = self.expected.changes(zone, provider)
             self.assertEqual(11, len(changes))
             self.assertEqual(
@@ -234,8 +235,8 @@ class TestEdgeCenterProvider(TestCase):
         plan = provider.plan(self.expected)
 
         # TC: create all
-        self.assertEqual(14, len(plan.changes))
-        self.assertEqual(14, provider.apply(plan))
+        self.assertEqual(15, len(plan.changes))
+        self.assertEqual(15, provider.apply(plan))
         self.assertFalse(plan.exists)
 
         provider._client._request.assert_has_calls(
@@ -307,6 +308,16 @@ class TestEdgeCenterProvider(TestCase):
                                     "2601:644:500:e210:62f8:1dff:feb8:947a"
                                 ]
                             }
+                        ],
+                    },
+                ),
+                call(
+                    'POST',
+                    'http://api/zones/unit.tests/caa.unit.tests./CAA',
+                    data={
+                        'ttl': 3600,
+                        'resource_records': [
+                            {'content': [0, 'issue', 'ca.unit.tests']}
                         ],
                     },
                 ),
@@ -394,7 +405,7 @@ class TestEdgeCenterProvider(TestCase):
             ]
         )
         # expected number of total calls
-        self.assertEqual(17, provider._client._request.call_count)
+        self.assertEqual(18, provider._client._request.call_count)
 
         # TC: delete 1 and update 1
         provider._client._request.reset_mock()
