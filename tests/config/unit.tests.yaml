@@ -32,11 +32,6 @@
     values:
     - ns1.edgedns.ru.
     - ns2.edgedns.ru.
-  - type: CAA
-    values:
-    - flags: 0
-      tag: issue
-      value: ca.unit.tests
 _imap._tcp:
   ttl: 600
   type: SRV
@@ -69,6 +64,12 @@ aaaa:
   ttl: 600
   type: AAAA
   value: 2601:644:500:e210:62f8:1dff:feb8:947a
+caa:
+  type: CAA
+  values:
+  - flags: 0
+    tag: issue
+    value: ca.unit.tests
 cname:
   ttl: 300
   type: CNAME

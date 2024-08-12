@@ -144,7 +144,7 @@ class _BaseProvider(BaseProvider):
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = True
     SUPPORTS_ROOT_NS = True
-    SUPPORTS = {"A", "AAAA", "NS", "MX", "TXT", "SRV", "CNAME", "PTR"}
+    SUPPORTS = {"A", "AAAA", "NS", "MX", "TXT", "SRV", "CNAME", "PTR", "CAA"}
     DEFAULT_POOL = "other"
     WEIGHT_POOL = "weight"
     BACKUP_POOL = "backup"
@@ -357,6 +357,18 @@ class _BaseProvider(BaseProvider):
             "octodns": self._data_for_failover(record),
             "value": self._add_dot_if_need(defaults[0]),
         }
+
+    def _data_for_CAA(self, _type, record):
+        values = []
+        for rr in record["resource_records"]:
+            values.append(
+                {
+                    "flags": rr["content"][0],
+                    "tag": rr["content"][1],
+                    "value": rr["content"][2],
+                }
+            )
+        return {"ttl": record["ttl"], "type": _type, "value": values}
 
     def _data_for_multiple(self, _type, record):
         if record.get("filters") is not None:
@@ -673,6 +685,15 @@ class _BaseProvider(BaseProvider):
         extra["filters"] = filters
 
         return {"ttl": record.ttl, **extra}
+
+    def _params_for_CAA(self, record):
+        return {
+            "ttl": record.ttl,
+            "resource_records": [
+                {"content": [value.flags, value.tag, value.value]}
+                for value in record.values
+            ],
+        }
 
     def _params_for_multiple(self, record):
         extra = dict()

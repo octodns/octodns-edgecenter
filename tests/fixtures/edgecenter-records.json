@@ -95,6 +95,20 @@
             ]
         },
         {
+            "name": "caa.unit.tests",
+            "resource_records": [
+                {
+                    "content": [
+                        0,
+                        "issue",
+                        "ca.unit.tests"
+                    ]
+                }
+            ],
+            "ttl": 3600,
+            "type": "CAA"
+        },
+        {
             "name": "cname.unit.tests",
             "type": "CNAME",
             "ttl": 300,
