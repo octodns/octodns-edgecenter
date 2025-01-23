@@ -1,4 +1,4 @@
-## v0.0.3 - 2023-??-?? -
+## v0.0.3 - 2025-01-23 - Support the ROOT
 
 * Add SUPPORTS_ROOT_NS to enable mangement of root NS records
 
