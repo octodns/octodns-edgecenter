@@ -136,7 +136,7 @@ class TestEdgeCenterProvider(TestCase):
             changes = self.expected.changes(zone, provider)
             self.assertEqual(0, len(changes))
 
-        # TC: 4 create (dynamic) + 1 removed + 7 modified
+        # TC: 3 create (dynamic) + 1 removed + 7 modified
         with requests_mock() as mock:
             base = "https://api.edgecenter.ru/dns/v2/zones/unit.tests/rrsets"
             with open("tests/fixtures/edgecenter-records.json") as fh:
@@ -977,8 +977,8 @@ class TestEdgeCenterProviderFailover(TestCase):
                             "type": "A",
                             "ttl": 60,
                             "filters": [
-                                *provider.weighted_shuffle_filters,
                                 *provider.is_healthy_filters,
+                                *provider.weighted_shuffle_filters,
                             ],
                             "resource_records": [{"content": ["7.7.7.7"]}],
                         }
@@ -1282,8 +1282,8 @@ class TestEdgeCenterProviderFailover(TestCase):
                     data={
                         "ttl": 300,
                         "filters": [
-                            *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
+                            *provider.weighted_shuffle_filters,
                         ],
                         "meta": failover_tcp_meta,
                         "resource_records": [
@@ -1299,8 +1299,8 @@ class TestEdgeCenterProviderFailover(TestCase):
                     data={
                         "ttl": 300,
                         "filters": [
-                            *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
+                            *provider.weighted_shuffle_filters,
                         ],
                         "meta": failover_udp_meta,
                         "resource_records": [
@@ -1325,8 +1325,8 @@ class TestEdgeCenterProviderFailover(TestCase):
                     data={
                         "ttl": 300,
                         "filters": [
-                            *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
+                            *provider.weighted_shuffle_filters,
                         ],
                         "meta": failover_icmp_meta,
                         "resource_records": [
@@ -1345,8 +1345,8 @@ class TestEdgeCenterProviderFailover(TestCase):
                     data={
                         "ttl": 300,
                         "filters": [
-                            *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
+                            *provider.weighted_shuffle_filters,
                         ],
                         "meta": failover_http_meta,
                         "resource_records": [
@@ -1370,8 +1370,8 @@ class TestEdgeCenterProviderFailover(TestCase):
                     data={
                         "ttl": 300,
                         "filters": [
-                            *provider.weighted_shuffle_filters,
                             *provider.is_healthy_filters,
+                            *provider.weighted_shuffle_filters,
                         ],
                         "meta": failover_https_meta,
                         "resource_records": [

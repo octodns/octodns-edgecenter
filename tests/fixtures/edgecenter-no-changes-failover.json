@@ -14,15 +14,15 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "weighted_shuffle"
                 },
                 {
                     "limit": 1,
                     "type": "first_n"
-                },
-                {
-                    "type": "is_healthy",
-                    "strict": false
                 }
             ],
             "resource_records": [
@@ -73,15 +73,15 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "weighted_shuffle"
                 },
                 {
                     "limit": 1,
                     "type": "first_n"
-                },
-                {
-                    "type": "is_healthy",
-                    "strict": false
                 }
             ],
             "resource_records": [
@@ -133,15 +133,15 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "weighted_shuffle"
                 },
                 {
                     "limit": 1,
                     "type": "first_n"
-                },
-                {
-                    "type": "is_healthy",
-                    "strict": false
                 }
             ],
             "resource_records": [
@@ -178,15 +178,15 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "weighted_shuffle"
                 },
                 {
                     "limit": 1,
                     "type": "first_n"
-                },
-                {
-                    "type": "is_healthy",
-                    "strict": false
                 }
             ],
             "resource_records": [
@@ -254,15 +254,15 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "weighted_shuffle"
                 },
                 {
                     "limit": 1,
                     "type": "first_n"
-                },
-                {
-                    "type": "is_healthy",
-                    "strict": false
                 }
             ],
             "resource_records": [
@@ -324,15 +324,15 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "weighted_shuffle"
                 },
                 {
                     "limit": 1,
                     "type": "first_n"
-                },
-                {
-                    "type": "is_healthy",
-                    "strict": false
                 }
             ],
             "resource_records": [
@@ -382,15 +382,15 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "weighted_shuffle"
                 },
                 {
                     "limit": 1,
                     "type": "first_n"
-                },
-                {
-                    "type": "is_healthy",
-                    "strict": false
                 }
             ],
             "resource_records": [
@@ -440,15 +440,15 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "weighted_shuffle"
                 },
                 {
                     "limit": 1,
                     "type": "first_n"
-                },
-                {
-                    "type": "is_healthy",
-                    "strict": false
                 }
             ],
             "resource_records": [
@@ -490,15 +490,15 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "weighted_shuffle"
                 },
                 {
                     "limit": 1,
                     "type": "first_n"
-                },
-                {
-                    "type": "is_healthy",
-                    "strict": false
                 }
             ],
             "resource_records": [
@@ -559,15 +559,15 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "weighted_shuffle"
                 },
                 {
                     "limit": 1,
                     "type": "first_n"
-                },
-                {
-                    "type": "is_healthy",
-                    "strict": false
                 }
             ],
             "resource_records": [
@@ -653,15 +653,15 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "weighted_shuffle"
                 },
                 {
                     "limit": 1,
                     "type": "first_n"
-                },
-                {
-                    "type": "is_healthy",
-                    "strict": false
                 }
             ],
             "resource_records": [
@@ -735,15 +735,15 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "weighted_shuffle"
                 },
                 {
                     "limit": 1,
                     "type": "first_n"
-                },
-                {
-                    "type": "is_healthy",
-                    "strict": false
                 }
             ],
             "resource_records": [
@@ -810,15 +810,15 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "weighted_shuffle"
                 },
                 {
                     "limit": 1,
                     "type": "first_n"
-                },
-                {
-                    "type": "is_healthy",
-                    "strict": false
                 }
             ],
             "resource_records": [
@@ -884,15 +884,15 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "weighted_shuffle"
                 },
                 {
                     "limit": 1,
                     "type": "first_n"
-                },
-                {
-                    "type": "is_healthy",
-                    "strict": false
                 }
             ],
             "resource_records": [
@@ -983,15 +983,15 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "weighted_shuffle"
                 },
                 {
                     "limit": 1,
                     "type": "first_n"
-                },
-                {
-                    "type": "is_healthy",
-                    "strict": false
                 }
             ],
             "resource_records": [
@@ -1036,6 +1036,10 @@
             },
             "filters": [
                 {
+                    "type": "is_healthy",
+                    "strict": false
+                },
+                {
                     "type": "geodns"
                 },
                 {
@@ -1045,10 +1049,7 @@
                 },
                 {
                     "type": "first_n",
-                    "limit": 1},
-                {
-                    "type": "is_healthy",
-                    "strict": false
+                    "limit": 1
                 }
             ],
             "resource_records": [
@@ -1168,12 +1169,12 @@
             },
             "filters": [
                 {
-                    "limit": 1,
-                    "type": "first_n"
-                },
-                {
                     "type": "is_healthy",
                     "strict": false
+                },
+                {
+                    "limit": 1,
+                    "type": "first_n"
                 },
                 {
                     "type": "weighted_shuffle"

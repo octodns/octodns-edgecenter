@@ -505,12 +505,12 @@ class _BaseProvider(BaseProvider):
         if "geodns" in types and "is_healthy" in types:
             want_filters = 4
             want_types = enumerate(
-                ["geodns", "default", "first_n", "is_healthy"]
+                ["is_healthy", "geodns", "default", "first_n"]
             )
         elif "weighted_shuffle" in types and "is_healthy" in types:
             want_filters = 3
             want_types = enumerate(
-                ["weighted_shuffle", "first_n", "is_healthy"]
+                ["is_healthy", "weighted_shuffle", "first_n"]
             )
         elif "geodns" in types:
             want_filters = 3
@@ -676,7 +676,7 @@ class _BaseProvider(BaseProvider):
         records = sorted(records, key=lambda x: (x["content"]))
 
         if record.octodns.get("healthcheck"):
-            filters = [*filters, *self.is_healthy_filters]
+            filters = [*self.is_healthy_filters, *filters]
             failover_data = self._params_for_failover(record)
             if failover_data:  # pragma: no branch
                 extra["meta"] = {"failover": failover_data}
@@ -707,7 +707,7 @@ class _BaseProvider(BaseProvider):
             records = sorted(records, key=lambda x: (x["content"]))
 
             if record.octodns.get("healthcheck"):
-                filters = [*filters, *self.is_healthy_filters]
+                filters = [*self.is_healthy_filters, *filters]
                 failover_data = self._params_for_failover(record)
                 if failover_data:  # pragma: no branch
                     extra["meta"] = {"failover": failover_data}
