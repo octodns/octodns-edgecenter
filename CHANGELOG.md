@@ -1,3 +1,11 @@
+## 1.1.0 - 2026-04-03
+
+Minor:
+* Changed the order of filters to the one used in EdgeCenter DNS API - [#40](https://github.com/octodns/octodns-edgecenter/pull/40)
+
+Patch:
+* Use new [changelet](https://github.com/octodns/changelet) tooling - [#39](https://github.com/octodns/octodns-edgecenter/pull/39)
+
 ## v1.0.0 - 2025-05-03 - Long overdue 1.0
 
 Noteworthy Changes:
