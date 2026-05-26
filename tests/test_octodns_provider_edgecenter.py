@@ -24,7 +24,9 @@ from octodns_edgecenter import (
 
 class TestEdgeCenterProvider(TestCase):
     expected = Zone("unit.tests.", [])
-    source = YamlProvider("test", join(dirname(__file__), "config"))
+    source = YamlProvider(
+        "test", join(dirname(__file__), "config"), escaped_semicolons=False
+    )
     source.populate(expected)
 
     default_filters = [
@@ -700,7 +702,9 @@ class TestEdgeCenterProvider(TestCase):
 
 class TestEdgeCenterProviderWeighted(TestCase):
     expected = Zone("un.test.", [])
-    source = YamlProvider("test2", join(dirname(__file__), "config"))
+    source = YamlProvider(
+        "test2", join(dirname(__file__), "config"), escaped_semicolons=False
+    )
     source.populate(expected)
 
     weighted_shuffle_filters = [
@@ -907,7 +911,11 @@ class TestEdgeCenterProviderWeighted(TestCase):
 
 class TestEdgeCenterProviderFailover(TestCase):
     expected = Zone("failover.test.", [])
-    source = YamlProvider("test_failover", join(dirname(__file__), "config"))
+    source = YamlProvider(
+        "test_failover",
+        join(dirname(__file__), "config"),
+        escaped_semicolons=False,
+    )
     source.populate(expected)
 
     def test_populate(self):
