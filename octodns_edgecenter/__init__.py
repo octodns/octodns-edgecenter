@@ -187,6 +187,19 @@ class _BaseProvider(BaseProvider):
     def _add_dot_if_need(self, value):
         return f"{value}." if not value.endswith(".") else value
 
+    @staticmethod
+    def _supported_dynamic_meta(meta):
+        return bool(
+            set(meta.keys())
+            & {"countries", "continents", "default", "weight", "backup"}
+        )
+
+    def _record_has_supported_dynamic_meta(self, record):
+        for rr in record.get("resource_records", []):
+            if self._supported_dynamic_meta(rr.get("meta", {}) or {}):
+                return True
+        return False
+
     def _build_pools(self, record, value_transform_fn):
         defaults = []
         geo_sets, pool_idx = dict(), 0
@@ -343,7 +356,9 @@ class _BaseProvider(BaseProvider):
     _data_for_PTR = _data_for_single
 
     def _data_for_CNAME(self, _type, record):
-        if record.get("filters") is None:
+        if record.get("filters") is None or not self._record_has_supported_dynamic_meta(
+            record
+        ):
             return self._data_for_single(_type, record)
 
         pools, rules, defaults = self._data_for_dynamic(
@@ -371,7 +386,9 @@ class _BaseProvider(BaseProvider):
         return {"ttl": record["ttl"], "type": _type, "value": values}
 
     def _data_for_multiple(self, _type, record):
-        if record.get("filters") is not None:
+        if record.get("filters") is not None and self._record_has_supported_dynamic_meta(
+            record
+        ):
             pools, rules, defaults = self._data_for_dynamic(record)
             extra = {
                 "octodns": self._data_for_failover(record),

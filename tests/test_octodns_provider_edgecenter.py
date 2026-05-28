@@ -178,15 +178,12 @@ class TestEdgeCenterProvider(TestCase):
             )
 
             zone = Zone("unit.tests.", [])
-            with self.assertRaises(RuntimeError) as ctx:
-                provider.populate(zone)
-
-            self.assertTrue(
-                str(ctx.exception).startswith(
-                    "filter is enabled, but no pools where built for"
-                ),
-                f"{ctx.exception} - is not start from desired text",
-            )
+            provider.populate(zone)
+            self.assertEqual(1, len(zone.records))
+            record = next(iter(zone.records))
+            self.assertEqual("A", record._type)
+            self.assertIsNone(record.dynamic)
+            self.assertEqual(["7.7.7.7"], record.values)
 
     def test_apply(self):
         provider = EdgeCenterProvider(
@@ -792,15 +789,12 @@ class TestEdgeCenterProviderWeighted(TestCase):
             )
 
             zone = Zone("un.test.", [])
-            with self.assertRaises(RuntimeError) as ctx:
-                provider.populate(zone)
-
-            self.assertTrue(
-                str(ctx.exception).startswith(
-                    "filter is enabled, but no pools where built for"
-                ),
-                f"{ctx.exception} - is not start from desired text",
-            )
+            provider.populate(zone)
+            self.assertEqual(1, len(zone.records))
+            record = next(iter(zone.records))
+            self.assertEqual("A", record._type)
+            self.assertIsNone(record.dynamic)
+            self.assertEqual(["7.7.7.7"], record.values)
 
     def test_apply(self):
         provider = EdgeCenterProvider(
@@ -995,15 +989,12 @@ class TestEdgeCenterProviderFailover(TestCase):
             )
 
             zone = Zone("failover.test.", [])
-            with self.assertRaises(RuntimeError) as ctx:
-                provider.populate(zone)
-
-            self.assertTrue(
-                str(ctx.exception).startswith(
-                    "filter is enabled, but no pools where built for"
-                ),
-                f"{ctx.exception} - is not start from desired text",
-            )
+            provider.populate(zone)
+            self.assertEqual(1, len(zone.records))
+            record = next(iter(zone.records))
+            self.assertEqual("A", record._type)
+            self.assertIsNone(record.dynamic)
+            self.assertEqual(["7.7.7.7"], record.values)
 
     def test_apply(self):
         provider = EdgeCenterProvider(
