@@ -696,6 +696,50 @@ class TestEdgeCenterProvider(TestCase):
         provider = EdgeCenterProvider("test_id", token="token")
         self.assertIsInstance(provider, _BaseProvider)
 
+    def test_dynamic_passthrough_rr_meta_roundtrip(self):
+        provider = EdgeCenterProvider(
+            "test_id", token="token", strict_supports=False
+        )
+        zone = Zone("unit.tests.", [])
+        record_data = provider._data_for_A(
+            "A",
+            {
+                "name": "unit.tests.",
+                "type": "A",
+                "ttl": 300,
+                "filters": self.default_filters,
+                "resource_records": [
+                    {
+                        "content": ["1.1.1.1"],
+                        "meta": {
+                            "countries": ["RU"],
+                            "asn": [12345],
+                            "ip": ["10.10.10.0/24"],
+                            "latlong": [27.988056, 86.925278],
+                            "notes": "passthrough",
+                            "regions": ["ru-pri"],
+                        },
+                    },
+                    {
+                        "content": ["2.2.2.2"],
+                        "meta": {"default": True},
+                    },
+                ],
+            },
+        )
+        record = Record.new(zone, "", record_data, source=provider)
+        params = provider._params_for_A(record)
+
+        first_rr = next(
+            rr for rr in params["resource_records"] if rr["content"] == ["1.1.1.1"]
+        )
+        self.assertEqual(["RU"], first_rr["meta"]["countries"])
+        self.assertEqual([12345], first_rr["meta"]["asn"])
+        self.assertEqual(["10.10.10.0/24"], first_rr["meta"]["ip"])
+        self.assertEqual([27.988056, 86.925278], first_rr["meta"]["latlong"])
+        self.assertEqual("passthrough", first_rr["meta"]["notes"])
+        self.assertEqual(["ru-pri"], first_rr["meta"]["regions"])
+
 
 class TestEdgeCenterProviderWeighted(TestCase):
     expected = Zone("un.test.", [])

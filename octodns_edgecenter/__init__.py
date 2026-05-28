@@ -148,6 +148,13 @@ class _BaseProvider(BaseProvider):
     DEFAULT_POOL = "other"
     WEIGHT_POOL = "weight"
     BACKUP_POOL = "backup"
+    SUPPORTED_DYNAMIC_META = {
+        "countries",
+        "continents",
+        "default",
+        "weight",
+        "backup",
+    }
 
     def __init__(self, id, api_url, auth_url, *args, **kwargs):
         token = kwargs.pop("token", None)
@@ -189,16 +196,66 @@ class _BaseProvider(BaseProvider):
 
     @staticmethod
     def _supported_dynamic_meta(meta):
-        return bool(
-            set(meta.keys())
-            & {"countries", "continents", "default", "weight", "backup"}
-        )
+        return bool(set(meta.keys()) & _BaseProvider.SUPPORTED_DYNAMIC_META)
 
     def _record_has_supported_dynamic_meta(self, record):
         for rr in record.get("resource_records", []):
             if self._supported_dynamic_meta(rr.get("meta", {}) or {}):
                 return True
         return False
+
+    def _extract_passthrough_rr_meta(self, record):
+        entries = []
+        for rr in record.get("resource_records", []):
+            meta = rr.get("meta", {}) or {}
+            passthrough = {
+                key: value
+                for key, value in meta.items()
+                if key not in self.SUPPORTED_DYNAMIC_META
+            }
+            if passthrough:
+                entries.append(
+                    {"value": rr["content"][0], "meta": passthrough}
+                )
+
+        if not entries:
+            return {}
+
+        return {"edgecenter": {"resource_record_meta": entries}}
+
+    @staticmethod
+    def _merge_octodns_metadata(*parts):
+        merged = {}
+        edgecenter = {}
+        for part in parts:
+            if not part:
+                continue
+            if "healthcheck" in part:
+                merged["healthcheck"] = part["healthcheck"]
+            part_edgecenter = part.get("edgecenter", {})
+            edgecenter.update(part_edgecenter)
+        if edgecenter:
+            merged["edgecenter"] = edgecenter
+        return merged
+
+    def _build_passthrough_meta_by_value(self, record):
+        result = defaultdict(list)
+        entries = (
+            record.octodns.get("edgecenter", {}).get("resource_record_meta", [])
+        )
+        for entry in entries:
+            value = entry.get("value")
+            meta = entry.get("meta") or {}
+            if value is not None and meta:
+                result[value].append(meta.copy())
+        return result
+
+    @staticmethod
+    def _next_passthrough_meta(value, passthrough_meta_by_value):
+        metas = passthrough_meta_by_value.get(value, [])
+        if metas:
+            return metas.pop(0)
+        return {}
 
     def _build_pools(self, record, value_transform_fn):
         defaults = []
@@ -369,7 +426,10 @@ class _BaseProvider(BaseProvider):
             "ttl": record["ttl"],
             "type": _type,
             "dynamic": {"pools": pools, "rules": rules},
-            "octodns": self._data_for_failover(record),
+            "octodns": self._merge_octodns_metadata(
+                self._data_for_failover(record),
+                self._extract_passthrough_rr_meta(record),
+            ),
             "value": self._add_dot_if_need(defaults[0]),
         }
 
@@ -391,7 +451,10 @@ class _BaseProvider(BaseProvider):
         ):
             pools, rules, defaults = self._data_for_dynamic(record)
             extra = {
-                "octodns": self._data_for_failover(record),
+                "octodns": self._merge_octodns_metadata(
+                    self._data_for_failover(record),
+                    self._extract_passthrough_rr_meta(record),
+                ),
                 "dynamic": {"pools": pools, "rules": rules},
                 "values": defaults,
             }
@@ -605,6 +668,9 @@ class _BaseProvider(BaseProvider):
         default_values = set(
             record.values if hasattr(record, "values") else [record.value]
         )
+        passthrough_meta_by_value = self._build_passthrough_meta_by_value(
+            record
+        )
 
         for rule in record.dynamic.rules:
             meta = dict()
@@ -630,7 +696,14 @@ class _BaseProvider(BaseProvider):
 
             for value in record.dynamic.pools[pool_name].data["values"]:
                 v = value["value"]
-                records.append({"content": [v], "meta": meta})
+                rr_meta = {
+                    **self._next_passthrough_meta(v, passthrough_meta_by_value),
+                    **meta,
+                }
+                record_data = {"content": [v]}
+                if rr_meta:
+                    record_data["meta"] = rr_meta
+                records.append(record_data)
 
                 if v in default_values:
                     default_values.remove(v)
@@ -657,8 +730,14 @@ class _BaseProvider(BaseProvider):
                     elif pool_name == self.DEFAULT_POOL:  # pragma: no branch
                         meta = {"default": True}
 
-                    if meta:
-                        records.append({"content": [v], "meta": meta})
+                    rr_meta = {
+                        **self._next_passthrough_meta(v, passthrough_meta_by_value),
+                        **meta,
+                    }
+                    if rr_meta:
+                        records.append({"content": [v], "meta": rr_meta})
+                    else:
+                        records.append({"content": [v]})
 
                     if v in default_values:
                         default_values.remove(v)
