@@ -212,7 +212,9 @@ class _BaseProvider(BaseProvider):
                 return True
         return False
 
-    def _extract_passthrough_rr_meta(self, record):
+    def _extract_passthrough_rr_meta(
+        self, record, value_transform_fn=lambda x: x
+    ):
         entries = []
         for rr in record.get("resource_records", []):
             content = rr.get("content") or []
@@ -223,7 +225,7 @@ class _BaseProvider(BaseProvider):
             if passthrough:
                 entries.append(
                     {
-                        "value": content[0],
+                        "value": value_transform_fn(content[0]),
                         "meta": copy.deepcopy(passthrough),
                     }
                 )
@@ -250,8 +252,8 @@ class _BaseProvider(BaseProvider):
 
     def _build_passthrough_meta_by_value(self, record):
         result = defaultdict(list)
-        entries = (
-            record.octodns.get("edgecenter", {}).get("resource_record_meta", [])
+        entries = record.octodns.get("edgecenter", {}).get(
+            "resource_record_meta", []
         )
         for entry in entries:
             value = entry.get("value")
@@ -427,9 +429,9 @@ class _BaseProvider(BaseProvider):
     _data_for_PTR = _data_for_single
 
     def _data_for_CNAME(self, _type, record):
-        if record.get("filters") is None or not self._record_has_supported_dynamic_meta(
-            record
-        ):
+        if record.get(
+            "filters"
+        ) is None or not self._record_has_supported_dynamic_meta(record):
             return self._data_for_single(_type, record)
 
         pools, rules, defaults = self._data_for_dynamic(
@@ -442,7 +444,9 @@ class _BaseProvider(BaseProvider):
             "dynamic": {"pools": pools, "rules": rules},
             "octodns": self._merge_octodns_metadata(
                 self._data_for_failover(record),
-                self._extract_passthrough_rr_meta(record),
+                self._extract_passthrough_rr_meta(
+                    record, self._add_dot_if_need
+                ),
             ),
             "value": self._add_dot_if_need(defaults[0]),
         }
@@ -460,9 +464,9 @@ class _BaseProvider(BaseProvider):
         return {"ttl": record["ttl"], "type": _type, "value": values}
 
     def _data_for_multiple(self, _type, record):
-        if record.get("filters") is not None and self._record_has_supported_dynamic_meta(
-            record
-        ):
+        if record.get(
+            "filters"
+        ) is not None and self._record_has_supported_dynamic_meta(record):
             pools, rules, defaults = self._data_for_dynamic(record)
             extra = {
                 "octodns": self._merge_octodns_metadata(

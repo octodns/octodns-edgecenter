@@ -60,6 +60,37 @@ Supports A, AAAA, NS, MX, TXT, SRV, CNAME, and PTR
 
 Supports dynamic records.
 
+#### EdgeCenter RR meta passthrough
+
+EdgeCenter RR meta keys that octoDNS dynamic does not model (`asn`, `ip`,
+`latlong`, `notes`, `regions`, and others outside geo/weight/default/backup)
+can be preserved in YAML under provider-specific passthrough:
+
+```yaml
+octodns:
+  edgecenter:
+    resource_record_meta:
+      - value: 2.2.2.2
+        meta:
+          regions: [ru-lug]
+          notes: set in EdgeCenter UI
+```
+
+On sync, passthrough meta is restored to the API by matching `value` to the
+RR content (CNAME targets are stored with a trailing dot, matching octoDNS
+dynamic values).
+
+**YAML is the source of truth.** Extra changes now compare the full API
+payload, not just failover settings. If meta exists in EdgeCenter (for example
+set in the UI) but is not represented in your config — including passthrough
+entries — `octodns-sync` may plan an update that removes it on apply.
+
+Records with EdgeCenter `filters` but only unsupported RR meta (for example
+`asn` or `regions` without geo, weight, default, or backup on any RR) import
+as plain `values`/`value` records instead of failing. Filters and that meta are
+not preserved on import. Syncing such a record may flatten server-side steering
+into a plain multi-value record.
+
 #### Filters
 
 Supports filter weight of records type A, AAAA, and CNAME (weighted_shuffle)
