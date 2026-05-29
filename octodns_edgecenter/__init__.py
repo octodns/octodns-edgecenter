@@ -2,6 +2,7 @@
 #
 #
 
+import copy
 import http
 import logging
 import urllib.parse
@@ -198,24 +199,33 @@ class _BaseProvider(BaseProvider):
     def _supported_dynamic_meta(meta):
         return bool(set(meta.keys()) & _BaseProvider.SUPPORTED_DYNAMIC_META)
 
+    @classmethod
+    def _passthrough_meta(cls, meta):
+        passthrough = dict(meta)
+        for key in cls.SUPPORTED_DYNAMIC_META:
+            passthrough.pop(key, None)
+        return passthrough
+
     def _record_has_supported_dynamic_meta(self, record):
         for rr in record.get("resource_records", []):
-            if self._supported_dynamic_meta(rr.get("meta", {}) or {}):
+            if self._supported_dynamic_meta(rr.get("meta", {})):
                 return True
         return False
 
     def _extract_passthrough_rr_meta(self, record):
         entries = []
         for rr in record.get("resource_records", []):
-            meta = rr.get("meta", {}) or {}
-            passthrough = {
-                key: value
-                for key, value in meta.items()
-                if key not in self.SUPPORTED_DYNAMIC_META
-            }
+            content = rr.get("content") or []
+            if not content:
+                continue
+
+            passthrough = self._passthrough_meta(rr.get("meta", {}))
             if passthrough:
                 entries.append(
-                    {"value": rr["content"][0], "meta": passthrough}
+                    {
+                        "value": content[0],
+                        "meta": copy.deepcopy(passthrough),
+                    }
                 )
 
         if not entries:
@@ -245,9 +255,9 @@ class _BaseProvider(BaseProvider):
         )
         for entry in entries:
             value = entry.get("value")
-            meta = entry.get("meta") or {}
+            meta = entry.get("meta", {})
             if value is not None and meta:
-                result[value].append(meta.copy())
+                result[value].append(copy.deepcopy(meta))
         return result
 
     @staticmethod
@@ -262,8 +272,12 @@ class _BaseProvider(BaseProvider):
         geo_sets, pool_idx = dict(), 0
         pools = defaultdict(lambda: {"values": []})
         for rr in record["resource_records"]:
-            meta = rr.get("meta", {}) or {}
-            value = {"value": value_transform_fn(rr["content"][0])}
+            content = rr.get("content") or []
+            if not content:
+                continue
+
+            meta = rr.get("meta", {})
+            value = {"value": value_transform_fn(content[0])}
             countries = meta.get("countries", []) or []
             continents = meta.get("continents", []) or []
 
@@ -274,7 +288,7 @@ class _BaseProvider(BaseProvider):
             elif meta.get("weight", 0) > 0 or meta.get("backup"):
                 if meta.get("weight", 0) > 0:
                     value_weight = {
-                        "value": value_transform_fn(rr["content"][0]),
+                        "value": value_transform_fn(content[0]),
                         "weight": meta["weight"],
                     }
                     pools[self.WEIGHT_POOL]["values"].append(value_weight)
@@ -742,11 +756,16 @@ class _BaseProvider(BaseProvider):
                     if v in default_values:
                         default_values.remove(v)
 
-        # if default values doesn't match any pool values, then just add this
-        # values with no any meta
+        # values not assigned to any pool
         if default_values:
             for value in default_values:
-                records.append({"content": [value]})
+                rr_meta = self._next_passthrough_meta(
+                    value, passthrough_meta_by_value
+                )
+                record_data = {"content": [value]}
+                if rr_meta:
+                    record_data["meta"] = rr_meta
+                records.append(record_data)
 
         return records
 
@@ -856,10 +875,15 @@ class _BaseProvider(BaseProvider):
         }
 
     def _extra_changes_dynamic_needs_update(self, zone, record):
+        params_for = getattr(self, f"_params_for_{record._type}")
         for rrset in zone.records:
-            if rrset == record and self._params_for_failover(
-                rrset
-            ) != self._params_for_failover(record):
+            if rrset != record:
+                continue
+            if self._params_for_failover(rrset) != self._params_for_failover(
+                record
+            ):
+                return True
+            if params_for(rrset) != params_for(record):
                 return True
 
         return False

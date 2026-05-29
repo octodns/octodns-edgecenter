@@ -740,6 +740,45 @@ class TestEdgeCenterProvider(TestCase):
         self.assertEqual("passthrough", first_rr["meta"]["notes"])
         self.assertEqual(["ru-pri"], first_rr["meta"]["regions"])
 
+    def test_passthrough_meta_on_values_only_rr(self):
+        provider = EdgeCenterProvider(
+            "test_id", token="token", strict_supports=False
+        )
+        zone = Zone("unit.tests.", [])
+        record = Record.new(
+            zone,
+            "",
+            {
+                "ttl": 300,
+                "type": "A",
+                "values": ["1.1.1.1", "2.2.2.2"],
+                "dynamic": {
+                    "pools": {
+                        "other": {
+                            "values": [{"value": "1.1.1.1"}],
+                        }
+                    },
+                    "rules": [{"pool": "other"}],
+                },
+                "octodns": {
+                    "edgecenter": {
+                        "resource_record_meta": [
+                            {
+                                "value": "2.2.2.2",
+                                "meta": {"regions": ["ru-lug", "ru-don"]},
+                            }
+                        ]
+                    }
+                },
+            },
+            source=provider,
+        )
+        params = provider._params_for_A(record)
+        second_rr = next(
+            rr for rr in params["resource_records"] if rr["content"] == ["2.2.2.2"]
+        )
+        self.assertEqual(["ru-lug", "ru-don"], second_rr["meta"]["regions"])
+
 
 class TestEdgeCenterProviderWeighted(TestCase):
     expected = Zone("un.test.", [])
