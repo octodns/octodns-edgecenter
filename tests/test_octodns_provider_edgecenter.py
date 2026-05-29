@@ -182,7 +182,7 @@ class TestEdgeCenterProvider(TestCase):
             self.assertEqual(1, len(zone.records))
             record = next(iter(zone.records))
             self.assertEqual("A", record._type)
-            self.assertIsNone(record.dynamic)
+            self.assertFalse(record.dynamic)
             self.assertEqual(["7.7.7.7"], record.values)
 
     def test_apply(self):
@@ -876,7 +876,7 @@ class TestEdgeCenterProviderWeighted(TestCase):
             self.assertEqual(1, len(zone.records))
             record = next(iter(zone.records))
             self.assertEqual("A", record._type)
-            self.assertIsNone(record.dynamic)
+            self.assertFalse(record.dynamic)
             self.assertEqual(["7.7.7.7"], record.values)
 
     def test_apply(self):
@@ -1076,7 +1076,7 @@ class TestEdgeCenterProviderFailover(TestCase):
             self.assertEqual(1, len(zone.records))
             record = next(iter(zone.records))
             self.assertEqual("A", record._type)
-            self.assertIsNone(record.dynamic)
+            self.assertFalse(record.dynamic)
             self.assertEqual(["7.7.7.7"], record.values)
 
     def test_apply(self):

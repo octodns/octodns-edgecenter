@@ -738,20 +738,25 @@ class _BaseProvider(BaseProvider):
                         for rr in records:
                             if v in rr["content"]:
                                 rr["meta"]["backup"] = True
+                                passthrough = self._next_passthrough_meta(
+                                    v, passthrough_meta_by_value
+                                )
+                                if passthrough:
+                                    rr["meta"].update(passthrough)
                                 break
                         else:
                             meta = {"backup": True}
                     elif pool_name == self.DEFAULT_POOL:  # pragma: no branch
                         meta = {"default": True}
 
-                    rr_meta = {
-                        **self._next_passthrough_meta(v, passthrough_meta_by_value),
-                        **meta,
-                    }
-                    if rr_meta:
+                    if meta:
+                        rr_meta = {
+                            **self._next_passthrough_meta(
+                                v, passthrough_meta_by_value
+                            ),
+                            **meta,
+                        }
                         records.append({"content": [v], "meta": rr_meta})
-                    else:
-                        records.append({"content": [v]})
 
                     if v in default_values:
                         default_values.remove(v)
