@@ -2,6 +2,7 @@
 #
 #
 
+import copy
 import http
 import logging
 import urllib.parse
@@ -148,6 +149,13 @@ class _BaseProvider(BaseProvider):
     DEFAULT_POOL = "other"
     WEIGHT_POOL = "weight"
     BACKUP_POOL = "backup"
+    SUPPORTED_DYNAMIC_META = {
+        "countries",
+        "continents",
+        "default",
+        "weight",
+        "backup",
+    }
 
     def __init__(self, id, api_url, auth_url, *args, **kwargs):
         token = kwargs.pop("token", None)
@@ -187,13 +195,91 @@ class _BaseProvider(BaseProvider):
     def _add_dot_if_need(self, value):
         return f"{value}." if not value.endswith(".") else value
 
+    @staticmethod
+    def _supported_dynamic_meta(meta):
+        return bool(set(meta.keys()) & _BaseProvider.SUPPORTED_DYNAMIC_META)
+
+    @classmethod
+    def _passthrough_meta(cls, meta):
+        passthrough = dict(meta)
+        for key in cls.SUPPORTED_DYNAMIC_META:
+            passthrough.pop(key, None)
+        return passthrough
+
+    def _record_has_supported_dynamic_meta(self, record):
+        for rr in record.get("resource_records", []):
+            if self._supported_dynamic_meta(rr.get("meta", {})):
+                return True
+        return False
+
+    def _extract_passthrough_rr_meta(
+        self, record, value_transform_fn=lambda x: x
+    ):
+        entries = []
+        for rr in record.get("resource_records", []):
+            content = rr.get("content") or []
+            if not content:
+                continue
+
+            passthrough = self._passthrough_meta(rr.get("meta", {}))
+            if passthrough:
+                entries.append(
+                    {
+                        "value": value_transform_fn(content[0]),
+                        "meta": copy.deepcopy(passthrough),
+                    }
+                )
+
+        if not entries:
+            return {}
+
+        return {"edgecenter": {"resource_record_meta": entries}}
+
+    @staticmethod
+    def _merge_octodns_metadata(*parts):
+        merged = {}
+        edgecenter = {}
+        for part in parts:
+            if not part:
+                continue
+            if "healthcheck" in part:
+                merged["healthcheck"] = part["healthcheck"]
+            part_edgecenter = part.get("edgecenter", {})
+            edgecenter.update(part_edgecenter)
+        if edgecenter:
+            merged["edgecenter"] = edgecenter
+        return merged
+
+    def _build_passthrough_meta_by_value(self, record):
+        result = defaultdict(list)
+        entries = record.octodns.get("edgecenter", {}).get(
+            "resource_record_meta", []
+        )
+        for entry in entries:
+            value = entry.get("value")
+            meta = entry.get("meta", {})
+            if value is not None and meta:
+                result[value].append(copy.deepcopy(meta))
+        return result
+
+    @staticmethod
+    def _next_passthrough_meta(value, passthrough_meta_by_value):
+        metas = passthrough_meta_by_value.get(value, [])
+        if metas:
+            return metas.pop(0)
+        return {}
+
     def _build_pools(self, record, value_transform_fn):
         defaults = []
         geo_sets, pool_idx = dict(), 0
         pools = defaultdict(lambda: {"values": []})
         for rr in record["resource_records"]:
-            meta = rr.get("meta", {}) or {}
-            value = {"value": value_transform_fn(rr["content"][0])}
+            content = rr.get("content") or []
+            if not content:
+                continue
+
+            meta = rr.get("meta", {})
+            value = {"value": value_transform_fn(content[0])}
             countries = meta.get("countries", []) or []
             continents = meta.get("continents", []) or []
 
@@ -204,7 +290,7 @@ class _BaseProvider(BaseProvider):
             elif meta.get("weight", 0) > 0 or meta.get("backup"):
                 if meta.get("weight", 0) > 0:
                     value_weight = {
-                        "value": value_transform_fn(rr["content"][0]),
+                        "value": value_transform_fn(content[0]),
                         "weight": meta["weight"],
                     }
                     pools[self.WEIGHT_POOL]["values"].append(value_weight)
@@ -343,7 +429,9 @@ class _BaseProvider(BaseProvider):
     _data_for_PTR = _data_for_single
 
     def _data_for_CNAME(self, _type, record):
-        if record.get("filters") is None:
+        if record.get(
+            "filters"
+        ) is None or not self._record_has_supported_dynamic_meta(record):
             return self._data_for_single(_type, record)
 
         pools, rules, defaults = self._data_for_dynamic(
@@ -354,7 +442,12 @@ class _BaseProvider(BaseProvider):
             "ttl": record["ttl"],
             "type": _type,
             "dynamic": {"pools": pools, "rules": rules},
-            "octodns": self._data_for_failover(record),
+            "octodns": self._merge_octodns_metadata(
+                self._data_for_failover(record),
+                self._extract_passthrough_rr_meta(
+                    record, self._add_dot_if_need
+                ),
+            ),
             "value": self._add_dot_if_need(defaults[0]),
         }
 
@@ -371,10 +464,15 @@ class _BaseProvider(BaseProvider):
         return {"ttl": record["ttl"], "type": _type, "value": values}
 
     def _data_for_multiple(self, _type, record):
-        if record.get("filters") is not None:
+        if record.get(
+            "filters"
+        ) is not None and self._record_has_supported_dynamic_meta(record):
             pools, rules, defaults = self._data_for_dynamic(record)
             extra = {
-                "octodns": self._data_for_failover(record),
+                "octodns": self._merge_octodns_metadata(
+                    self._data_for_failover(record),
+                    self._extract_passthrough_rr_meta(record),
+                ),
                 "dynamic": {"pools": pools, "rules": rules},
                 "values": defaults,
             }
@@ -588,6 +686,9 @@ class _BaseProvider(BaseProvider):
         default_values = set(
             record.values if hasattr(record, "values") else [record.value]
         )
+        passthrough_meta_by_value = self._build_passthrough_meta_by_value(
+            record
+        )
 
         for rule in record.dynamic.rules:
             meta = dict()
@@ -613,7 +714,14 @@ class _BaseProvider(BaseProvider):
 
             for value in record.dynamic.pools[pool_name].data["values"]:
                 v = value["value"]
-                records.append({"content": [v], "meta": meta})
+                rr_meta = {
+                    **self._next_passthrough_meta(v, passthrough_meta_by_value),
+                    **meta,
+                }
+                record_data = {"content": [v]}
+                if rr_meta:
+                    record_data["meta"] = rr_meta
+                records.append(record_data)
 
                 if v in default_values:
                     default_values.remove(v)
@@ -634,6 +742,11 @@ class _BaseProvider(BaseProvider):
                         for rr in records:
                             if v in rr["content"]:
                                 rr["meta"]["backup"] = True
+                                passthrough = self._next_passthrough_meta(
+                                    v, passthrough_meta_by_value
+                                )
+                                if passthrough:
+                                    rr["meta"].update(passthrough)
                                 break
                         else:
                             meta = {"backup": True}
@@ -641,16 +754,27 @@ class _BaseProvider(BaseProvider):
                         meta = {"default": True}
 
                     if meta:
-                        records.append({"content": [v], "meta": meta})
+                        rr_meta = {
+                            **self._next_passthrough_meta(
+                                v, passthrough_meta_by_value
+                            ),
+                            **meta,
+                        }
+                        records.append({"content": [v], "meta": rr_meta})
 
                     if v in default_values:
                         default_values.remove(v)
 
-        # if default values doesn't match any pool values, then just add this
-        # values with no any meta
+        # values not assigned to any pool
         if default_values:
             for value in default_values:
-                records.append({"content": [value]})
+                rr_meta = self._next_passthrough_meta(
+                    value, passthrough_meta_by_value
+                )
+                record_data = {"content": [value]}
+                if rr_meta:
+                    record_data["meta"] = rr_meta
+                records.append(record_data)
 
         return records
 
@@ -760,10 +884,15 @@ class _BaseProvider(BaseProvider):
         }
 
     def _extra_changes_dynamic_needs_update(self, zone, record):
+        params_for = getattr(self, f"_params_for_{record._type}")
         for rrset in zone.records:
-            if rrset == record and self._params_for_failover(
-                rrset
-            ) != self._params_for_failover(record):
+            if rrset != record:
+                continue
+            if self._params_for_failover(rrset) != self._params_for_failover(
+                record
+            ):
+                return True
+            if params_for(rrset) != params_for(record):
                 return True
 
         return False

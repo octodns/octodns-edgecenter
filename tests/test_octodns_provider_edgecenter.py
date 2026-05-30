@@ -178,15 +178,12 @@ class TestEdgeCenterProvider(TestCase):
             )
 
             zone = Zone("unit.tests.", [])
-            with self.assertRaises(RuntimeError) as ctx:
-                provider.populate(zone)
-
-            self.assertTrue(
-                str(ctx.exception).startswith(
-                    "filter is enabled, but no pools where built for"
-                ),
-                f"{ctx.exception} - is not start from desired text",
-            )
+            provider.populate(zone)
+            self.assertEqual(1, len(zone.records))
+            record = next(iter(zone.records))
+            self.assertEqual("A", record._type)
+            self.assertFalse(record.dynamic)
+            self.assertEqual(["7.7.7.7"], record.values)
 
     def test_apply(self):
         provider = EdgeCenterProvider(
@@ -699,6 +696,424 @@ class TestEdgeCenterProvider(TestCase):
         provider = EdgeCenterProvider("test_id", token="token")
         self.assertIsInstance(provider, _BaseProvider)
 
+    def test_dynamic_passthrough_rr_meta_roundtrip(self):
+        provider = EdgeCenterProvider(
+            "test_id", token="token", strict_supports=False
+        )
+        zone = Zone("unit.tests.", [])
+        record_data = provider._data_for_A(
+            "A",
+            {
+                "name": "unit.tests.",
+                "type": "A",
+                "ttl": 300,
+                "filters": self.default_filters,
+                "resource_records": [
+                    {
+                        "content": ["1.1.1.1"],
+                        "meta": {
+                            "countries": ["RU"],
+                            "asn": [12345],
+                            "ip": ["10.10.10.0/24"],
+                            "latlong": [27.988056, 86.925278],
+                            "notes": "passthrough",
+                            "regions": ["ru-pri"],
+                        },
+                    },
+                    {"content": ["2.2.2.2"], "meta": {"default": True}},
+                ],
+            },
+        )
+        record = Record.new(zone, "", record_data, source=provider)
+        params = provider._params_for_A(record)
+
+        first_rr = next(
+            rr
+            for rr in params["resource_records"]
+            if rr["content"] == ["1.1.1.1"]
+        )
+        self.assertEqual(["RU"], first_rr["meta"]["countries"])
+        self.assertEqual([12345], first_rr["meta"]["asn"])
+        self.assertEqual(["10.10.10.0/24"], first_rr["meta"]["ip"])
+        self.assertEqual([27.988056, 86.925278], first_rr["meta"]["latlong"])
+        self.assertEqual("passthrough", first_rr["meta"]["notes"])
+        self.assertEqual(["ru-pri"], first_rr["meta"]["regions"])
+
+    def test_cname_passthrough_rr_meta_roundtrip(self):
+        provider = EdgeCenterProvider(
+            "test_id", token="token", strict_supports=False
+        )
+        zone = Zone("unit.tests.", [])
+        record_data = provider._data_for_CNAME(
+            "CNAME",
+            {
+                "name": "www.unit.tests.",
+                "type": "CNAME",
+                "ttl": 300,
+                "filters": self.default_filters,
+                "resource_records": [
+                    {
+                        "content": ["target.example.com"],
+                        "meta": {
+                            "countries": ["RU"],
+                            "regions": ["ru-msk"],
+                            "notes": "cname passthrough",
+                        },
+                    },
+                    {
+                        "content": ["fallback.example.com"],
+                        "meta": {"default": True},
+                    },
+                ],
+            },
+        )
+        record = Record.new(zone, "www", record_data, source=provider)
+        passthrough = record.octodns["edgecenter"]["resource_record_meta"][0]
+        self.assertEqual("target.example.com.", passthrough["value"])
+        self.assertEqual(["ru-msk"], passthrough["meta"]["regions"])
+
+        params = provider._params_for_CNAME(record)
+        target_rr = next(
+            rr
+            for rr in params["resource_records"]
+            if rr["content"] == ["target.example.com."]
+        )
+        self.assertEqual(["RU"], target_rr["meta"]["countries"])
+        self.assertEqual(["ru-msk"], target_rr["meta"]["regions"])
+        self.assertEqual("cname passthrough", target_rr["meta"]["notes"])
+
+    def test_extract_passthrough_skips_empty_content(self):
+        provider = EdgeCenterProvider("test_id", token="token")
+        result = provider._extract_passthrough_rr_meta(
+            {
+                "resource_records": [
+                    {"content": [], "meta": {"asn": [1]}},
+                    {"content": ["1.1.1.1"], "meta": {"asn": [2]}},
+                ]
+            }
+        )
+        self.assertEqual(
+            [{"value": "1.1.1.1", "meta": {"asn": [2]}}],
+            result["edgecenter"]["resource_record_meta"],
+        )
+
+    def test_build_passthrough_meta_by_value_skips_invalid_entries(self):
+        provider = EdgeCenterProvider("test_id", token="token")
+        zone = Zone("unit.tests.", [])
+        record = Record.new(
+            zone,
+            "",
+            {"ttl": 300, "type": "A", "value": "1.1.1.1"},
+            source=provider,
+        )
+        record.octodns = {
+            "edgecenter": {
+                "resource_record_meta": [
+                    {"value": None, "meta": {"asn": [1]}},
+                    {"value": "1.1.1.1", "meta": {}},
+                    {"value": "2.2.2.2", "meta": {"regions": ["ru-lug"]}},
+                ]
+            }
+        }
+        result = provider._build_passthrough_meta_by_value(record)
+        self.assertEqual([{"regions": ["ru-lug"]}], result["2.2.2.2"])
+
+    def test_build_pools_skips_empty_content(self):
+        provider = EdgeCenterProvider("test_id", token="token")
+        pools, geo_sets, defaults = provider._build_pools(
+            {
+                "resource_records": [
+                    {"content": [], "meta": {"default": True}},
+                    {"content": ["1.1.1.1"], "meta": {"default": True}},
+                ]
+            },
+            lambda x: x,
+        )
+        self.assertEqual(["1.1.1.1"], defaults)
+        self.assertEqual(
+            [{"value": "1.1.1.1"}], pools[provider.DEFAULT_POOL]["values"]
+        )
+
+    def test_params_for_geo_rule_without_meta(self):
+        provider = EdgeCenterProvider(
+            "test_id", token="token", strict_supports=False
+        )
+        zone = Zone("unit.tests.", [])
+        record = Record.new(
+            zone,
+            "",
+            {
+                "ttl": 300,
+                "type": "A",
+                "values": ["1.1.1.1"],
+                "dynamic": {
+                    "pools": {"pool-0": {"values": [{"value": "1.1.1.1"}]}},
+                    "rules": [{"pool": "pool-0"}],
+                },
+            },
+            source=provider,
+        )
+        params = provider._params_for_A(record)
+        self.assertEqual([{"content": ["1.1.1.1"]}], params["resource_records"])
+
+    def test_params_for_backup_passthrough_on_existing_rr(self):
+        provider = EdgeCenterProvider(
+            "test_id", token="token", strict_supports=False
+        )
+        zone = Zone("unit.tests.", [])
+        record = Record.new(
+            zone,
+            "",
+            {
+                "ttl": 300,
+                "type": "A",
+                "values": ["3.3.3.3"],
+                "dynamic": {
+                    "pools": {
+                        "backup": {
+                            "fallback": "other",
+                            "values": [{"value": "3.3.3.3"}],
+                        },
+                        "other": {
+                            "values": [
+                                {"value": "4.3.3.3"},
+                                {"value": "5.3.3.3"},
+                            ]
+                        },
+                        "weight": {
+                            "fallback": "backup",
+                            "values": [
+                                {"value": "3.3.3.3", "weight": 2},
+                                {"value": "1.3.3.3", "weight": 5},
+                            ],
+                        },
+                    },
+                    "rules": [{"pool": "weight"}],
+                },
+                "octodns": {
+                    "edgecenter": {
+                        "resource_record_meta": [
+                            {
+                                "value": "3.3.3.3",
+                                "meta": {"regions": ["ru-lug"]},
+                            },
+                            {
+                                "value": "3.3.3.3",
+                                "meta": {"notes": "backup passthrough"},
+                            },
+                        ]
+                    }
+                },
+            },
+            source=provider,
+        )
+        params = provider._params_for_A(record)
+        matching = [
+            rr
+            for rr in params["resource_records"]
+            if rr["content"] == ["3.3.3.3"]
+        ]
+        self.assertEqual(1, len(matching))
+        self.assertTrue(matching[0]["meta"]["backup"])
+        self.assertEqual(2, matching[0]["meta"]["weight"])
+        self.assertEqual(["ru-lug"], matching[0]["meta"]["regions"])
+        self.assertEqual("backup passthrough", matching[0]["meta"]["notes"])
+
+    def test_params_for_backup_passthrough_new_rr(self):
+        provider = EdgeCenterProvider(
+            "test_id", token="token", strict_supports=False
+        )
+        zone = Zone("unit.tests.", [])
+        record = Record.new(
+            zone,
+            "",
+            {
+                "ttl": 300,
+                "type": "A",
+                "values": ["1.1.1.1"],
+                "dynamic": {
+                    "pools": {
+                        "backup": {
+                            "fallback": "other",
+                            "values": [{"value": "7.7.7.7"}],
+                        },
+                        "other": {
+                            "values": [
+                                {"value": "4.3.3.3"},
+                                {"value": "5.3.3.3"},
+                            ]
+                        },
+                        "weight": {
+                            "fallback": "backup",
+                            "values": [
+                                {"value": "1.1.1.1", "weight": 5},
+                                {"value": "2.2.2.2", "weight": 1},
+                            ],
+                        },
+                    },
+                    "rules": [{"pool": "weight"}],
+                },
+                "octodns": {
+                    "edgecenter": {
+                        "resource_record_meta": [
+                            {
+                                "value": "7.7.7.7",
+                                "meta": {"regions": ["ru-don"]},
+                            }
+                        ]
+                    }
+                },
+            },
+            source=provider,
+        )
+        params = provider._params_for_A(record)
+        backup_rr = next(
+            rr
+            for rr in params["resource_records"]
+            if rr["content"] == ["7.7.7.7"]
+        )
+        self.assertTrue(backup_rr["meta"]["backup"])
+        self.assertEqual(["ru-don"], backup_rr["meta"]["regions"])
+
+    def test_data_for_dynamic_raises_when_no_pools(self):
+        provider = EdgeCenterProvider("test_id", token="token")
+        with self.assertRaises(RuntimeError):
+            provider._data_for_dynamic(
+                {
+                    "resource_records": [
+                        {"content": ["1.1.1.1"], "meta": {"countries": []}}
+                    ]
+                }
+            )
+
+    def test_extra_changes_dynamic_needs_update_failover(self):
+        provider = EdgeCenterProvider("test_id", token="token")
+        zone = Zone("unit.tests.", [])
+        base = {
+            "ttl": 300,
+            "type": "A",
+            "values": ["1.1.1.1"],
+            "dynamic": {
+                "pools": {
+                    "weight": {"values": [{"value": "1.1.1.1", "weight": 1}]}
+                },
+                "rules": [{"pool": "weight"}],
+            },
+        }
+        existing = Record.new(
+            zone,
+            "",
+            {
+                **base,
+                "octodns": {
+                    "healthcheck": {"port": 80, "protocol": "TCP"},
+                    "edgecenter": {
+                        "failover": {"frequency": 10, "timeout": 10}
+                    },
+                },
+            },
+            source=provider,
+        )
+        desired = Record.new(
+            zone,
+            "",
+            {
+                **base,
+                "octodns": {
+                    "healthcheck": {"port": 80, "protocol": "TCP"},
+                    "edgecenter": {
+                        "failover": {"frequency": 20, "timeout": 10}
+                    },
+                },
+            },
+            source=provider,
+        )
+        zone.add_record(existing)
+        self.assertTrue(
+            provider._extra_changes_dynamic_needs_update(zone, desired)
+        )
+
+    def test_extra_changes_dynamic_needs_update_passthrough(self):
+        provider = EdgeCenterProvider("test_id", token="token")
+        zone = Zone("unit.tests.", [])
+        base = {
+            "ttl": 300,
+            "type": "A",
+            "values": ["1.1.1.1"],
+            "dynamic": {
+                "pools": {
+                    "weight": {"values": [{"value": "1.1.1.1", "weight": 1}]}
+                },
+                "rules": [{"pool": "weight"}],
+            },
+            "octodns": {
+                "healthcheck": {"port": 80, "protocol": "TCP"},
+                "edgecenter": {"failover": {"frequency": 10, "timeout": 10}},
+            },
+        }
+        existing = Record.new(
+            zone,
+            "",
+            {
+                **base,
+                "octodns": {
+                    **base["octodns"],
+                    "edgecenter": {
+                        **base["octodns"]["edgecenter"],
+                        "resource_record_meta": [
+                            {
+                                "value": "1.1.1.1",
+                                "meta": {"regions": ["ru-lug"]},
+                            }
+                        ],
+                    },
+                },
+            },
+            source=provider,
+        )
+        desired = Record.new(zone, "", base, source=provider)
+        zone.add_record(existing)
+        self.assertTrue(
+            provider._extra_changes_dynamic_needs_update(zone, desired)
+        )
+
+    def test_passthrough_meta_on_values_only_rr(self):
+        provider = EdgeCenterProvider(
+            "test_id", token="token", strict_supports=False
+        )
+        zone = Zone("unit.tests.", [])
+        record = Record.new(
+            zone,
+            "",
+            {
+                "ttl": 300,
+                "type": "A",
+                "values": ["1.1.1.1", "2.2.2.2"],
+                "dynamic": {
+                    "pools": {"other": {"values": [{"value": "1.1.1.1"}]}},
+                    "rules": [{"pool": "other"}],
+                },
+                "octodns": {
+                    "edgecenter": {
+                        "resource_record_meta": [
+                            {
+                                "value": "2.2.2.2",
+                                "meta": {"regions": ["ru-lug", "ru-don"]},
+                            }
+                        ]
+                    }
+                },
+            },
+            source=provider,
+        )
+        params = provider._params_for_A(record)
+        second_rr = next(
+            rr
+            for rr in params["resource_records"]
+            if rr["content"] == ["2.2.2.2"]
+        )
+        self.assertEqual(["ru-lug", "ru-don"], second_rr["meta"]["regions"])
+
 
 class TestEdgeCenterProviderWeighted(TestCase):
     expected = Zone("un.test.", [])
@@ -792,15 +1207,12 @@ class TestEdgeCenterProviderWeighted(TestCase):
             )
 
             zone = Zone("un.test.", [])
-            with self.assertRaises(RuntimeError) as ctx:
-                provider.populate(zone)
-
-            self.assertTrue(
-                str(ctx.exception).startswith(
-                    "filter is enabled, but no pools where built for"
-                ),
-                f"{ctx.exception} - is not start from desired text",
-            )
+            provider.populate(zone)
+            self.assertEqual(1, len(zone.records))
+            record = next(iter(zone.records))
+            self.assertEqual("A", record._type)
+            self.assertFalse(record.dynamic)
+            self.assertEqual(["7.7.7.7"], record.values)
 
     def test_apply(self):
         provider = EdgeCenterProvider(
@@ -995,15 +1407,12 @@ class TestEdgeCenterProviderFailover(TestCase):
             )
 
             zone = Zone("failover.test.", [])
-            with self.assertRaises(RuntimeError) as ctx:
-                provider.populate(zone)
-
-            self.assertTrue(
-                str(ctx.exception).startswith(
-                    "filter is enabled, but no pools where built for"
-                ),
-                f"{ctx.exception} - is not start from desired text",
-            )
+            provider.populate(zone)
+            self.assertEqual(1, len(zone.records))
+            record = next(iter(zone.records))
+            self.assertEqual("A", record._type)
+            self.assertFalse(record.dynamic)
+            self.assertEqual(["7.7.7.7"], record.values)
 
     def test_apply(self):
         provider = EdgeCenterProvider(
