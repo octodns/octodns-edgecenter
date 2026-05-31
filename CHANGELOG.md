@@ -1,3 +1,9 @@
+## 1.2.0 - 2026-05-31
+
+Minor:
+* Add support for filters-only meta and RR meta pass-through
+   * NOTE: extra care should be taken to review changes on records with custom meta, See EdgeCenter RR meta passthrough in the README for more information. - [#55](https://github.com/octodns/octodns-edgecenter/pull/55)
+
 ## 1.1.0 - 2026-04-03
 
 Minor:
